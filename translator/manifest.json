@@ -1,0 +1,16 @@
+{
+    "manifest_version": 3,
+    "name": "CS5199 Translator",
+    "version": "1.0",
+
+    "background": {
+        "service_worker": "serviceWorker.js"
+    },
+
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"], 
+            "js": ["contentScript.js"]
+        }
+    ]
+}
