@@ -1,4 +1,7 @@
-const API_DICTIONARYAPI = 'https://api.dictionaryapi.dev/api/v2/entries/'; // Default API
+const API_DICTIONARYAPI = 'https://api.dictionaryapi.dev/api/v2/entries/';
+
+// Default translation API
+var defaultAPI = API_DICTIONARYAPI; 
 
 /**
  * Asynchronous API fetcher
@@ -24,22 +27,20 @@ class AsyncFetcher {
 }
 
 /**
- * Service worker event registration
+ * Event registration
  */
-var currentAPI;
-
-// Installation
 chrome.runtime.onInstalled.addListener(details => {
-    console.log('ServiceWorker installed', details);
-    
-    currentAPI = API_DICTIONARYAPI;
+    console.log('ServiceWorker loaded', details);
 });
 
-// Message handler
+/**
+ * Message event handler
+ */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if(Array.isArray(message.tokens) && message.tokens.length > 0) {
-        let _urls = message.tokens.map(token => `${currentAPI}${message.lang}/${token}`);
+    if(Array.isArray(message.tokens) && message.tokens.length > 0 && message.lang) {
+        let _urls = message.tokens.map(token => `${defaultAPI}${message.lang}/${token}`);
         let _asyncFetcher = new AsyncFetcher(_urls);
+        console.log(_urls);
 
         _asyncFetcher.fetchAll(sendResponse);
     }

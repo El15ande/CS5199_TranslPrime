@@ -4,6 +4,10 @@
     "description": "160000139",
     "version": "1.0",
 
+    "action": {
+        "default_popup": "popup.html"
+    },
+
     "background": {
         "service_worker": "serviceWorker.js"
     },
@@ -13,5 +17,10 @@
             "matches": ["<all_urls>"], 
             "js": ["contentScript.js"]
         }
+    ],
+
+    "permissions": [
+        "tabs",
+        "storage"
     ]
 }
