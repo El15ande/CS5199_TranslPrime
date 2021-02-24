@@ -4,11 +4,20 @@
 
 ## Technology Stack
 
-### Message exchange format
+### Menu structure
+
+```HTML
+    <div id="translationOverallMenu">
+        
+    </div>
+```
+
+### Message exchange
 
 #### Message exchange function
 
 - [`chrome.runtime.sendMessage`](https://developer.chrome.com/docs/extensions/reference/runtime/#method-sendMessage)
+- [`chrome.tabs.sendMessage`](https://developer.chrome.com/docs/extensions/reference/tabs/#method-sendMessage)
 
 #### Message format
 
