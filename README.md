@@ -8,7 +8,7 @@
 
 ```HTML
     <div id="translationOverallMenu">
-        
+        <div class="meaning"></div>
     </div>
 ```
 
@@ -19,7 +19,15 @@
 - [`chrome.runtime.sendMessage`](https://developer.chrome.com/docs/extensions/reference/runtime/#method-sendMessage)
 - [`chrome.tabs.sendMessage`](https://developer.chrome.com/docs/extensions/reference/tabs/#method-sendMessage)
 
-#### Message format
+#### Outbound object format
 
 - `tokens: array`: tokens that will be translated
-- `lang: str`: corresponding language code of tokens
+- `lang: str`: language code corresponding to tokens
+
+#### Inbound object format
+
+- `word: str`: word that is translated
+- `meanings: array`: all translation meanings
+  - `meaning.partOfSpeech: str`: POS of current meaning
+  - `meaning.definitions: array`: definitions of current meaning
+    - `definition.definition: str`: definition string

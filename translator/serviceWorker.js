@@ -29,7 +29,7 @@ class AsyncFetcher {
 /**
  * Event registration
  */
-chrome.runtime.onInstalled.addListener(details => {
+chrome.runtime.onInstalled.addListener((details) => {
     console.log('ServiceWorker loaded', details);
 });
 

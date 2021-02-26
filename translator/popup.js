@@ -3,12 +3,12 @@ const SUPPORTED_LANG = {
     'fr': 'French',
     'de': 'German',
     'es': 'Spanish'
-}
+};
 
 const QUERY_INFO = {
     active: true,
     currentWindow: true
-}
+};
 
 /**
  * Event registration
