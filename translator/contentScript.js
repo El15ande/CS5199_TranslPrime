@@ -1,35 +1,53 @@
+/**
+ * Throttle minimal duration in ms
+ * This value must be larger than 1000 due to BAIDU API limitation
+ */
 const THROTTLE_INTERVAL = 2000;
 
-// Default source-lang & target-lang
+// Default source language (the language of selected input)
 var defaultSrcLang = 'auto';
+// Default target language (the language of output)
 var defaultTarLang = 'en';
+
+// Global browser object
+// TODO Check borwser adaptivity
+var _browser = chrome || browser;
 
 /**
  * Tokeniser for text tokenisation
- *  - {string} #str          selected string that will be tokenised
- *  - {string} #lang         source language
- *  + {array}  tokens        tokenised selected string
- *  + {string} tokenLang     public #lang
+ *  @private {string} #str  selected string that will be tokenised
+ *  @public {object} tokenise
  */
 class Tokeniser {
     #str = '';
-    #lang = '';
 
     constructor(str) {
         this.#str = str;
     }
 
-    get tokens() {
-        // TODO Tokenisation
-        return this.#str.split(' ');
-    }
+    /**
+     * Tokenisation process
+     * @return {object}     object for service worker to invoke API call
+     */
+    tokenise() {
+        let tokenObj = {};
+        
+        // 1. Construct token array
+        // Replace all non-alphabet characters
+        let _str = this.#str.replace(/[^ A-z\u4e00-\u9fa5]/g, '');
+        tokenObj.tokens = _str.split(' ');
 
-    get tokenLang() {
-        return this.#lang;
-    }
+        // TODO Further tokenisation conditions
+        tokenObj.isBilingual = true;
 
-    set tokenLang(lang) {
-        this.#lang = lang;
+        if(tokenObj.isBilingual) {
+            tokenObj.from = defaultSrcLang;
+            tokenObj.to = defaultTarLang;
+        } else {
+            tokenObject.lang = defaultTarLang;
+        }
+
+        return tokenObj;
     }
 }
 
@@ -37,16 +55,8 @@ class Tokeniser {
  * Translation main process
  */
 var translateSelection = function() {
-    // If menu already created, remove it & return
-    let _existMenu = document.getElementById('translationOverallMenu');
-    if(_existMenu) {
-        _existMenu.remove();
-        return;
-    }
-
     // 1. Retrive webpage selection info.
     let _selection = window.getSelection();
-    
     if(_selection.type !== 'Range') return;
 
     // 2. Create webpage pop-menu
@@ -61,10 +71,10 @@ var translateSelection = function() {
 /**
  * Create the div for overall pop-menu
  * @param {object} selection    current webpage selection
- * @returns {HTMLDivElement}    pop-menu div element
+ * @return {HTMLDivElement}     pop-menu div element
  */
 var createPopMenu = function(selection) {
-    // 1. Get selection range (DOMrect) coordinates
+    // 1. Get selection range {DOMrect} coordinates
     let _DOMRect = selection.getRangeAt(0).getBoundingClientRect();
 
     // 2.1 Create div element
@@ -77,27 +87,36 @@ var createPopMenu = function(selection) {
     overallDiv.style.left = `${Math.ceil(_DOMRect.left)}px`;
     overallDiv.style.top = `${Math.ceil(_DOMRect.top + window.pageYOffset)}px`;
     
-    overallDiv.style.minWidth = '100px';
-    overallDiv.style.minHeight = '75px';
+    overallDiv.style.minWidth = '200px';
+    overallDiv.style.minHeight = '100px';
     overallDiv.style.borderRadius = '10px';
     overallDiv.style.boxShadow = '5px 10px 10px #AAAAAA';
     overallDiv.style.backgroundColor = '#C3E5DE';
+
+    // 2.3 Add close button at the top
+    let _close = document.createElement('button');
+    // TODO close button style
+    _close.type = 'button';
+    _close.style.float = 'right';
+    _close.onclick = () => document.getElementById('translationOverallMenu').remove();
+    overallDiv.appendChild(_close);
 
     return overallDiv;
 }
 
 /**
  * Create the div element for each word translation
- * @param {object} result       translation result
- * @param {string} word         original word
- * @returns {array}             array of pop-menu item div elements
+ * @param {object} result   translation result
+ * @param {string} word     original word
+ * @return {HTMLDivElement[]}   array of pop-menu item div elements
  */
 var createPopMenuItem = function(result, word) {
     let _createItemDiv = function() {
         let _item = document.createElement('div');
-        _item.class = "meaning";
+        _item.className = "meaning";
         _item.style.margin = '5px 5px 5px 5px';
         _item.style.color = '#000000';
+        _item.style.fontFamily = `'Google Sans', 'sans-serif'`;
 
         return _item;
     }
@@ -132,6 +151,7 @@ var createPopMenuItem = function(result, word) {
             let _def = document.createElement('p');
             _def.textContent = `${_count++}. ${defs[i].definition}`;
             _def.style.fontSize = '14px';
+            _def.style.margin = '4px 0 4px 0';
             _defs.push(_def);
         }
 
@@ -184,46 +204,52 @@ var createPopMenuItem = function(result, word) {
 
 /**
  * Create the div element for note section
+ * TODO Note module
  */
 var createPopMenuNote = function() {
-    // TODO Note section
     return document.createElement('input');
 }
 
 /**
  * Send the selected text to service worker & retrive translation info.
- * @param {object} selection        current webpage selection
+ * @param {object} selection    current webpage selection
  * @param {HTMLDivElement} menu     menu div element 
  */
 var translateText = function(selection, menu) {
+    let _tokens = selection.toString();
+    // TODO Check selection.toString() validity
+
     // 1. Tokenise selected texts
-    let _tokeniser = new Tokeniser(selection.toString());
-    chrome.i18n.detectLanguage(selection.toString(), (res) => {
-        if(res && res.languages && Array.isArray(res.languages)) {
-            _tokeniser.tokenLang = res.languages[0].language;
-            
-            console.log('Translation input', _tokeniser);
-        }
-    });
+    let _tokeniser = new Tokeniser(_tokens);
 
     // 2. Send message
-    chrome.runtime.sendMessage({
-        tokens: _tokeniser.tokens,
-        lang: defaultTarLang
-    }, (response) => {
+    _browser.runtime.sendMessage(_tokeniser.tokenise(), (response) => {
         console.log('Translation output', response);
         
         if(response && Array.isArray(response)) {
-            response.forEach((res, i) => {
-                // 3. Append pop-menu with translation results
-                let _items = createPopMenuItem(res[0], _tokeniser.tokens[i]);
-                _items.map((i) => menu.appendChild(i));
-            });
+            // TODO More detail here
+            if(response[0].trans_result && Array.isArray(response[0].trans_result) && response[0].trans_result.length > 0) {
+                let _ftokens =  response[0].trans_result[0].dst.split('\n');
+
+                _browser.runtime.sendMessage({
+                    tokens: _ftokens,
+                    isBilingual: false,
+                    lang: response[0].to
+                }, (response2) => {
+                    console.log('Final response', response2);
+
+                    response2.forEach((res, i) => {
+                        // 3. Append pop-menu with translation results
+                        let _items = createPopMenuItem(res[0], _ftokens[i]);
+                        _items.map((i) => menu.appendChild(i));
+                    });
+                });
+            }
         }
         
         //  4. Append pop-menu with note section
-        let _noteDiv = createPopMenuNote();
-        menu.appendChild(_noteDiv);
+        // let _noteDiv = createPopMenuNote();
+        // menu.appendChild(_noteDiv);
     });
 }
 
@@ -231,17 +257,17 @@ var translateText = function(selection, menu) {
  * Retrieve source-lang & target-lang from browser storage
  */
 var retrieveLanguage = function() {
-    chrome.storage.local.get(['srclang'], (result) => {
+    _browser.storage.local.get(['srclang'], (result) => {
         (!result || !result.srclang)
-            ? chrome.storage.local.set({ srclang: defaultSrcLang })
+            ? _browser.storage.local.set({ srclang: defaultSrcLang })
             : defaultSrcLang = result.srclang;
 
         console.log(`Current source language: ${defaultSrcLang}`);
     });
 
-    chrome.storage.local.get(['tarlang'], (result) => {
+    _browser.storage.local.get(['tarlang'], (result) => {
         (!result || !result.tarlang)
-            ? chrome.storage.local.set({ tarlang: defaultTarLang })
+            ? _browser.storage.local.set({ tarlang: defaultTarLang })
             : defaultTarLang = result.tarlang;
 
         console.log(`Current target language: ${defaultTarLang}`);
@@ -250,7 +276,7 @@ var retrieveLanguage = function() {
 
 /**
  * Throttle: execute given function only once in the given duration
- * @param {function} func       function to be throttled
+ * @param {function} func   function to be throttled
  * @param {number} interval     delay duration
  */
 var throttle = function(func, interval) {
@@ -272,7 +298,7 @@ var throttle = function(func, interval) {
  */
 console.log('ContentScript loaded');
 
-// Retrieve translation language
+// 1. Retrieve translation language
 retrieveLanguage();
 
 /**
@@ -283,7 +309,7 @@ document.onmouseup = throttle(translateSelection, THROTTLE_INTERVAL);
 /**
  * Message event handler
  */
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+ _browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if(message.srclang) {
         defaultSrcLang = message.srclang;
         console.log(`New source language: ${message.srclang}`);

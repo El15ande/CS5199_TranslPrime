@@ -8,6 +8,8 @@
 
 ```HTML
     <div id="translationOverallMenu">
+        <button type="button">
+        <div class="meaning"></div>
         <div class="meaning"></div>
     </div>
 ```
@@ -21,8 +23,14 @@
 
 #### Outbound object format
 
-- `tokens: array`: tokens that will be translated
-- `lang: str`: language code corresponding to tokens
+- General attributes
+  - `isBilingual: boolean`: flag for whether the tokens will be translated into another language
+  - `tokens: array`: tokens that will be translated
+- Bilingual (first level) translation object `isBilingual: true`
+  - `from: str`: language code corresponding to `tokens`
+  - `to: str`: language code that `tokens` will be translated into
+- Paraphrase (second level) translation object `isBilingual: false`
+  - `lang: str`: language code corresponding to `tokens`
 
 #### Inbound object format
 
