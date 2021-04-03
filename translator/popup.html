@@ -9,16 +9,18 @@
     >
 </head>
 <body>
-    <p id="head">Translation Setting</p>
+    <h4 id="head">Translation Setting</h4>
 
-    <div id="srclanggroup" class="form-group">
-        <label for="srclangsel">Original text language (source)</label>
-        <select class="form-control" id="srclangsel"></select>
+    <hr>
+
+    <div class="form-group">
+        <label for="src-sel">Original text language (source)</label>
+        <select class="form-control" id="src-sel"></select>
     </div>
 
-    <div id="tarlanggroup" class="form-group">
-        <label for="tarlangsel">Translation text language (target)</label>
-        <select class="form-control" id="tarlangsel"></select>
+    <div class="form-group">
+        <label for="tar-sel">Translated text language (target)</label>
+        <select class="form-control" id="tar-sel"></select>
     </div>
 
     <style>
@@ -29,12 +31,19 @@
         
         div {
             width: 80%;
-            margin: 0 auto;
+            margin: 10px 30px 10px 30px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        hr {
+            margin: 5px 30px 5px 30px;
         }
 
         #head {
             text-align: center;
             font-weight: bold;
+            margin: 5px 0 5px 0;
         }
 
     </style>

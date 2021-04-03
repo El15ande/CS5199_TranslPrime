@@ -1,21 +1,81 @@
-// Bilingual translation API
-const SAPI_BAIDU = 'http://fanyi-api.baidu.com/api/trans/vip/translate';
-const SAPI_BAIDU_APPID = '20210225000706883';
-const SAPI_BAIDU_KEY = 'qQZh8SEkTNffxbK3vevy';
-// Paraphrase translation API
-const TAPI_GDICTIONARY = 'https://api.dictionaryapi.dev/api/v2/entries';
-
-// Default paraphrase translation API
-var defaultAPI = TAPI_GDICTIONARY;
-
 // Global browser object
-// TODO Check borwser adaptivity
-var _browser = chrome || browser;
+var Browser = chrome || browser; // TODO Check other browser adaptivity
+
+
+
+/**
+ * Translation API 'plug'
+ * @private {boolean} #type     Type of translation API (TRUE: Bilingual API) (FALSE: Paraphrase API)
+ * @private {string} #domain    API HTTP(S) domain
+ * @private {object} #keys      API keys for different service requirements
+ */
+ class TranslationAPI {
+    #type = false;
+    #domain = '';
+    #keys = {};
+
+    constructor(type, domain, keys) {
+        this.#type = type;
+        this.#domain = domain;
+        this.#keys = Object.assign(keys);
+    }
+}
+
+// Default B-API
+const BAIDU_DOMAIN = 'http://fanyi-api.baidu.com/api/trans/vip/translate';
+const BAIDU_APPID = '20210225000706883';
+const BAIDU_KEY = 'qQZh8SEkTNffxbK3vevy';
+// B-API 'socket'
+var bilingualAPI = new TranslationAPI(true, BAIDU_DOMAIN, { appid: BAIDU_APPID, key: BAIDU_KEY });
+
+// Default P-API
+const GDICT_DOMAIN = 'https://api.dictionaryapi.dev/api/v2/entries';
+// P-API 'socket'
+var paraphraseAPI = new TranslationAPI(false, GDICT_DOMAIN, {});
+
+
+
+/**
+ * Tokeniser for text tokenisation
+ * @private {string} #str      selected string that will be tokenised
+ * @public  tokenise 
+ */
+ class Tokeniser {
+    #str = '';
+
+    constructor(str) {
+        this.#str = str;
+    }
+
+    /**
+     * Tokenise #str
+     * @returns {object}        object for service worker to invoke API call
+     */
+    tokenise() {
+        let tokenObj = {
+            tokens: []
+        };
+        
+        // 1. Construct token array
+        // Replace all non-alphabet characters
+        let _str = this.#str.replace(/[^ A-z\u4e00-\u9fa5]/g, '');
+        tokenObj.tokens = _str.split(' ');
+
+        // 2. Set translation languages
+
+        return tokenObj;
+    }
+}
+
+// Current source-lang
+var currentSrclang = 'auto';
+// Current target-lang
+var currentTarlang = 'en';
 
 /**
  * Asynchronous API fetcher
- * @private {array} #urls   urls that will be fetched
- * @public {function} fetchAll
+ * @private {array} #urls       urls that will be fetched
+ * @public  fetchAll
  */
 class AsyncFetcher {
     #urls = [];
@@ -25,8 +85,8 @@ class AsyncFetcher {
     }
 
     /**
-     * Fetch all results from #urls
-     * @param {function} res    response function
+     * Fetch all #urls
+     * @param {function} res        response function
      */
     async fetchAll(res) {
         let _fetch = async function(url) {
@@ -35,18 +95,19 @@ class AsyncFetcher {
             return await _res.json();
         }
 
-        // TODO Check responses
         await Promise
             .all(this.#urls.map(url => _fetch(url)))
             .then(responses => res(responses));
     }
 }
 
+
+
 /**
  * Use MD5 encryption to hash given text
  * Code adapted from https://api.fanyi.baidu.com/doc/21
  * @param {string} text     text to be encrypted
- * @return {string}     MD5-encrypted text
+ * @returns {string}        MD5-encrypted text
  */
 var MD5 = function(text) {
     // Utf8Encode
@@ -228,6 +289,7 @@ var MD5 = function(text) {
         return _arrIdx[f][x];
     }
 
+    // Iterate FF/GG/HH/II
     let _loopXX = function(f, fname, k) {
         let _ai, _bi, _ci, _di;
 
@@ -282,14 +344,59 @@ var MD5 = function(text) {
 }
 
 /**
+ * Retrieve source-lang & target-lang from browser storage
+ */
+ var retrieveLanguage = function() {
+    Browser.storage.local.get(['srclang'], (result) => {
+        if(result.srclang) currentSrclang = result.srclang;
+    });
+
+    Browser.storage.local.get(['tarlang'], (result) => {
+        if(result.tarlang) currentTarlang = result.tarlang;
+    });
+}
+
+
+
+/**
  * Event registration
  */
- _browser.runtime.onInstalled.addListener((details) => console.log('ServiceWorker loaded', details));
+// On extension installation
+ Browser.runtime.onInstalled.addListener((details) => {
+    console.log('ServiceWorker loaded', details);
+
+    // 1. Register context menu item(s)
+    if(Browser.contextMenus) {
+        Browser.contextMenus.create({
+            id: 'TranslPrime',
+            title: 'Translate!',
+            contexts: ['selection']
+        });
+    }
+
+    // 2. Set source-lang & target-lang to 'auto' (source) and 'en' (target) in browser storage
+    Browser.storage.local.set({ srclang: currentSrclang });
+    Browser.storage.local.set({ tarlang: currentTarlang });
+ });
+
+// On registered item clicked
+Browser.contextMenus.onClicked.addListener((info, tab) => {
+    let _selText = info.selectionText;
+
+    if(_selText) {
+        // 1. Get current source-lang & target-lang from browser storage
+        retrieveLanguage();
+
+        // 1. Register selected text in tokeniser
+        let _tokeniser = new Tokeniser(_selText);
+        console.log(_tokeniser);
+    }
+});
 
 /**
  * Message event handler
  */
- _browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+ Browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     let _urls, _asyncFetcher;
 
     console.log(message);
@@ -305,15 +412,15 @@ var MD5 = function(text) {
             };
 
             // https://api.fanyi.baidu.com/doc/21
-            let _sign = MD5(SAPI_BAIDU_APPID + _query.q + _query.salt + SAPI_BAIDU_KEY);
+            let _sign = MD5(BAIDU_APPID + _query.q + _query.salt + BAIDU_KEY);
             let _url = encodeURI(
-                `${SAPI_BAIDU}?q=${_query.q}&from=${_query.from}&to=${_query.to}&appid=${SAPI_BAIDU_APPID}&salt=${_query.salt}&sign=${_sign}`
+                `${BAIDU_DOMAIN}?q=${_query.q}&from=${_query.from}&to=${_query.to}&appid=${BAIDU_APPID}&salt=${_query.salt}&sign=${_sign}`
             );
 
             _asyncFetcher = new AsyncFetcher([_url]);
         } else {
             // Paraphrase translation
-            _urls = message.tokens.map((token) => `${defaultAPI}/${message.lang}/${token}`);
+            _urls = message.tokens.map((token) => `${defaultParaphraseAPI}/${message.lang}/${token}`);
 
             _asyncFetcher = new AsyncFetcher(_urls);
         }

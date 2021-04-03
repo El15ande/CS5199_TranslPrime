@@ -10,9 +10,13 @@ const QUERY_INFO = {
     currentWindow: true
 };
 
+
+
 // Global browser object
-// TODO Check borwser adaptivity
-var _browser = chrome || browser;
+// TODO Check browser adaptivity
+var Browser = chrome || browser;
+
+
 
 /**
  * Event registration
@@ -20,6 +24,7 @@ var _browser = chrome || browser;
 window.onload = function(e) {
     console.log('Popup loaded');
 
+    // Create an <option> element
     let _createOption = function(lang) {
         let _opt = document.createElement('option');
         _opt.value = lang;
@@ -28,60 +33,60 @@ window.onload = function(e) {
         return _opt;
     }
 
-    let _srclangsel = document.getElementById('srclangsel');
-    let _tarlangsel = document.getElementById('tarlangsel');
+    let _srcSel = document.getElementById('src-sel');
+    let _tarSel = document.getElementById('tar-sel');
 
     // 1.1 Append source-lang menu with auto-detection option
-    let _adOpt = document.createElement('option');
-    _adOpt.value = 'auto';
-    _adOpt.innerHTML = 'Auto detection'
-    _srclangsel.appendChild(_adOpt);
+    let _autoOpt = document.createElement('option');
+    _autoOpt.value = 'auto';
+    _autoOpt.innerHTML = 'Auto Detection'
+    _srcSel.appendChild(_autoOpt);
 
     // 1.2 Append source-lang & target-lang menu
     for(let lang in SUPPORTED_LANG) {
         let _srcOpt = _createOption(lang);
         let _tarOpt = _createOption(lang);
 
-        _srclangsel.appendChild(_srcOpt);
-        _tarlangsel.appendChild(_tarOpt);
+        _srcSel.appendChild(_srcOpt);
+        _tarSel.appendChild(_tarOpt);
     }
 
     // 2. Retrieve source-lang & tar-lang from browser storage, otherwise use auto-detection (source) & English (target)
-    _browser.storage.local.get(['srclang'], (result) => {
+    Browser.storage.local.get(['srclang'], (result) => {
         let _defaultSrc = (result && result.srclang) ? result.srclang : 'auto';
-        _srclangsel.value = _defaultSrc;
+        _srcSel.value = _defaultSrc;
 
         console.log(`Current source language: ${_defaultSrc}`);
     });
 
-    _browser.storage.local.get(['tarlang'], (result) => {
+    Browser.storage.local.get(['tarlang'], (result) => {
         let _defaultTar = (result && result.tarlang) ? result.tarlang : 'en';
-        _tarlangsel.value = _defaultTar;
+        _tarSel.value = _defaultTar;
         
         console.log(`Current target language: ${_defaultTar}`);
     });
 }
 
-document.getElementById('srclangsel').onchange = function(e) {
+document.getElementById('src-sel').onchange = function(e) {
     let _newLang = { srclang: document.getElementById('srclangsel').value };
 
-    _browser.storage.local.set(_newLang, () => {
+    Browser.storage.local.set(_newLang, () => {
         console.log(`New source language: ${_newLang.srclang}`);
     });
 
-    _browser.tabs.query(QUERY_INFO, (tabs) => {
-        if(Array.isArray(tabs) && tabs.length > 0) _browser.tabs.sendMessage(tabs[0].id, _newLang);
+    Browser.tabs.query(QUERY_INFO, (tabs) => {
+        if(Array.isArray(tabs) && tabs.length > 0) Browser.tabs.sendMessage(tabs[0].id, _newLang);
     });
 }
 
-document.getElementById('tarlangsel').onchange = function(e) {
+document.getElementById('tar-sel').onchange = function(e) {
     let _newLang = { tarlang: document.getElementById('tarlangsel').value };
 
-    _browser.storage.local.set(_newLang, () => {
+    Browser.storage.local.set(_newLang, () => {
         console.log(`New target language: ${_newLang.tarlang}`);
     });
 
-    _browser.tabs.query(QUERY_INFO, (tabs) => {
-        if(Array.isArray(tabs) && tabs.length > 0) _browser.tabs.sendMessage(tabs[0].id, _newLang);
+    Browser.tabs.query(QUERY_INFO, (tabs) => {
+        if(Array.isArray(tabs) && tabs.length > 0) Browser.tabs.sendMessage(tabs[0].id, _newLang);
     });
 }

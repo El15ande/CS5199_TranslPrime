@@ -9,47 +9,10 @@ var defaultSrcLang = 'auto';
 // Default target language (the language of output)
 var defaultTarLang = 'en';
 
-// Global browser object
+// Global browser adaption
 // TODO Check borwser adaptivity
-var _browser = chrome || browser;
+var Browser = chrome || browser;
 
-/**
- * Tokeniser for text tokenisation
- *  @private {string} #str  selected string that will be tokenised
- *  @public {object} tokenise
- */
-class Tokeniser {
-    #str = '';
-
-    constructor(str) {
-        this.#str = str;
-    }
-
-    /**
-     * Tokenisation process
-     * @return {object}     object for service worker to invoke API call
-     */
-    tokenise() {
-        let tokenObj = {};
-        
-        // 1. Construct token array
-        // Replace all non-alphabet characters
-        let _str = this.#str.replace(/[^ A-z\u4e00-\u9fa5]/g, '');
-        tokenObj.tokens = _str.split(' ');
-
-        // TODO Further tokenisation conditions
-        tokenObj.isBilingual = true;
-
-        if(tokenObj.isBilingual) {
-            tokenObj.from = defaultSrcLang;
-            tokenObj.to = defaultTarLang;
-        } else {
-            tokenObject.lang = defaultTarLang;
-        }
-
-        return tokenObj;
-    }
-}
 
 /**
  * Translation main process
@@ -223,7 +186,7 @@ var translateText = function(selection, menu) {
     let _tokeniser = new Tokeniser(_tokens);
 
     // 2. Send message
-    _browser.runtime.sendMessage(_tokeniser.tokenise(), (response) => {
+    Browser.runtime.sendMessage(_tokeniser.tokenise(), (response) => {
         console.log('Translation output', response);
         
         if(response && Array.isArray(response)) {
@@ -231,7 +194,7 @@ var translateText = function(selection, menu) {
             if(response[0].trans_result && Array.isArray(response[0].trans_result) && response[0].trans_result.length > 0) {
                 let _ftokens =  response[0].trans_result[0].dst.split('\n');
 
-                _browser.runtime.sendMessage({
+                Browser.runtime.sendMessage({
                     tokens: _ftokens,
                     isBilingual: false,
                     lang: response[0].to
@@ -250,27 +213,6 @@ var translateText = function(selection, menu) {
         //  4. Append pop-menu with note section
         // let _noteDiv = createPopMenuNote();
         // menu.appendChild(_noteDiv);
-    });
-}
-
-/**
- * Retrieve source-lang & target-lang from browser storage
- */
-var retrieveLanguage = function() {
-    _browser.storage.local.get(['srclang'], (result) => {
-        (!result || !result.srclang)
-            ? _browser.storage.local.set({ srclang: defaultSrcLang })
-            : defaultSrcLang = result.srclang;
-
-        console.log(`Current source language: ${defaultSrcLang}`);
-    });
-
-    _browser.storage.local.get(['tarlang'], (result) => {
-        (!result || !result.tarlang)
-            ? _browser.storage.local.set({ tarlang: defaultTarLang })
-            : defaultTarLang = result.tarlang;
-
-        console.log(`Current target language: ${defaultTarLang}`);
     });
 }
 
@@ -298,18 +240,20 @@ var throttle = function(func, interval) {
  */
 console.log('ContentScript loaded');
 
-// 1. Retrieve translation language
+// 1. Retrieve translation languages
 retrieveLanguage();
+
+
 
 /**
  * Event registration
  */
-document.onmouseup = throttle(translateSelection, THROTTLE_INTERVAL);
+// document.onmouseup = throttle(translateSelection, THROTTLE_INTERVAL);
 
 /**
  * Message event handler
  */
- _browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+ Browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if(message.srclang) {
         defaultSrcLang = message.srclang;
         console.log(`New source language: ${message.srclang}`);
