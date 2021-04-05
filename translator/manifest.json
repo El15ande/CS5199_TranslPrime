@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
-    "name": "CS5199 Translator",
-    "description": "160000139",
+    "name": "TranslPrime",
+    "description": "CS5199 MSci Project",
     "version": "1.0",
 
     "action": {

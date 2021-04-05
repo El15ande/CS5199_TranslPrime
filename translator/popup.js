@@ -1,34 +1,30 @@
-const SUPPORTED_LANG = {
+// Language codes/key & their corresponding names/value
+const LANGUAGE_CODES = {
     'en': 'English',
     'fr': 'French',
     'de': 'German',
     'es': 'Spanish'
 };
 
-const QUERY_INFO = {
-    active: true,
-    currentWindow: true
-};
 
 
-
-// Global browser object
-// TODO Check browser adaptivity
-var Browser = chrome || browser;
+// Global browser
+var Browser = chrome || browser; // TODO Check other browser adaptivity
 
 
 
 /**
  * Event registration
  */
+// On window loaded
 window.onload = function(e) {
     console.log('Popup loaded');
 
-    // Create an <option> element
+    // Create <option> element
     let _createOption = function(lang) {
         let _opt = document.createElement('option');
         _opt.value = lang;
-        _opt.innerHTML = SUPPORTED_LANG[lang];
+        _opt.innerHTML = LANGUAGE_CODES[lang];
 
         return _opt;
     }
@@ -36,14 +32,14 @@ window.onload = function(e) {
     let _srcSel = document.getElementById('src-sel');
     let _tarSel = document.getElementById('tar-sel');
 
-    // 1.1 Append source-lang menu with auto-detection option
+    // 1. Append S-Lang menu w/ auto-recognition option
     let _autoOpt = document.createElement('option');
     _autoOpt.value = 'auto';
-    _autoOpt.innerHTML = 'Auto Detection'
+    _autoOpt.innerHTML = 'Auto Recognition'
     _srcSel.appendChild(_autoOpt);
 
-    // 1.2 Append source-lang & target-lang menu
-    for(let lang in SUPPORTED_LANG) {
+    // 2. Append S-Lang & T-Lang menu w/ language options
+    for(let lang in LANGUAGE_CODES) {
         let _srcOpt = _createOption(lang);
         let _tarOpt = _createOption(lang);
 
@@ -51,42 +47,36 @@ window.onload = function(e) {
         _tarSel.appendChild(_tarOpt);
     }
 
-    // 2. Retrieve source-lang & tar-lang from browser storage, otherwise use auto-detection (source) & English (target)
+    // 3. Retrieve S-Lang & T-Lang from Browser.storage.local
     Browser.storage.local.get(['srclang'], (result) => {
-        let _defaultSrc = (result && result.srclang) ? result.srclang : 'auto';
-        _srcSel.value = _defaultSrc;
-
-        console.log(`Current source language: ${_defaultSrc}`);
+        if(result && result.srclang) {
+            _srcSel.value = result.srclang;
+            console.log(`Current S-Lang: ${result.srclang}`);
+        }
     });
 
     Browser.storage.local.get(['tarlang'], (result) => {
-        let _defaultTar = (result && result.tarlang) ? result.tarlang : 'en';
-        _tarSel.value = _defaultTar;
-        
-        console.log(`Current target language: ${_defaultTar}`);
+        if(result && result.tarlang) {
+            _tarSel.value = result.tarlang;
+            console.log(`Current T-Lang: ${result.tarlang}`);
+        }
     });
 }
 
+// On S-Lang menu changed
 document.getElementById('src-sel').onchange = function(e) {
-    let _newLang = { srclang: document.getElementById('srclangsel').value };
+    let _newLang = { srclang: document.getElementById('src-sel').value };
 
     Browser.storage.local.set(_newLang, () => {
-        console.log(`New source language: ${_newLang.srclang}`);
-    });
-
-    Browser.tabs.query(QUERY_INFO, (tabs) => {
-        if(Array.isArray(tabs) && tabs.length > 0) Browser.tabs.sendMessage(tabs[0].id, _newLang);
+        console.log(`New S-Lang: ${_newLang.srclang}`);
     });
 }
 
+// On T-Lang menu changed
 document.getElementById('tar-sel').onchange = function(e) {
-    let _newLang = { tarlang: document.getElementById('tarlangsel').value };
+    let _newLang = { tarlang: document.getElementById('tar-sel').value };
 
     Browser.storage.local.set(_newLang, () => {
-        console.log(`New target language: ${_newLang.tarlang}`);
-    });
-
-    Browser.tabs.query(QUERY_INFO, (tabs) => {
-        if(Array.isArray(tabs) && tabs.length > 0) Browser.tabs.sendMessage(tabs[0].id, _newLang);
+        console.log(`New T-Lang: ${_newLang.tarlang}`);
     });
 }
