@@ -13,6 +13,8 @@ const GDICT_DOMAIN = 'https://api.dictionaryapi.dev/api/v2/entries';
  * @private {string} #domain    API HTTP(S) domain
  * @private {object} #keys      API keys for different service requirements
  * 
+ * @public get domain (#domain)
+ * 
  * @public getKey
  */
  class TranslationAPI {
@@ -50,6 +52,8 @@ const GDICT_DOMAIN = 'https://api.dictionaryapi.dev/api/v2/entries';
  * @private {boolean} #isBilingual  Flag of bilingual translation (TRUE: bilingual) (FALSE: paraphrase)
  * @private {string[]} #tokens      Separated tokens
  * 
+ * @public get isBilingual (#isBilingual)
+ * 
  * @public toAPIFormat
  */
  class Tokeniser {
@@ -70,8 +74,11 @@ const GDICT_DOMAIN = 'https://api.dictionaryapi.dev/api/v2/entries';
 
         // Tokenisation
         // Space-separated languages will be tokenised by splitting
-        // FIXME Changeline is not replaced
-        this.#tokens = text.replace(/[^ A-z\u4e00-\u9fa5]/g, '').split(' ');
+        let _text = text.includes('\n') ? text.replace(/\n/g, ' ') : text;
+
+        this.#tokens = _text
+            .replace(/[^ A-z\u4e00-\u9fa5]/g, '')
+            .split(' ');
     }
 
     get isBilingual() {
@@ -367,20 +374,7 @@ var MD5 = function(text) {
 }
 
 /**
- * Retrieve S-Lang & T-Lang from Browser.storage.locals
- */
- var retrieveLangs = function() {
-    Browser.storage.local.get(['srclang'], (result) => {
-        if(result && result.srclang) sourceLanguage = result.srclang;
-    });
-
-    Browser.storage.local.get(['tarlang'], (result) => {
-        if(result && result.tarlang) targetLanguage = result.tarlang;
-    });
-}
-
-/**
- * Asynchronously fetch a group of URLs and response through callback
+ * @async Asynchronously fetch a group of URLs and response through callback
  * @param {string[]} urls       Array of string URLs
  * @param {function} callback   Promise callback function
  */
@@ -421,6 +415,9 @@ var makeBilingualURLs = function(tokeniser) {
             salt: (new Date).getTime()
         }
 
+        if(_query.from === 'fr') _query.from = 'fra';
+        if(_query.to === 'fr') _query.to = 'fra';
+
         // https://api.fanyi.baidu.com/doc/21
         let _sign = MD5(bilingualAPI.getKey('appid') + _query.q + _query.salt + bilingualAPI.getKey('key'));
         let _url = encodeURI(
@@ -454,14 +451,25 @@ var bilingualCallback = function(tokeniser, responses) {
             let _bFrom = _res.from;
             let _bTo = _res.to;
 
+            if(_bFrom === 'fra') _bFrom = 'fr';
+            if(_bTo === 'fra') _bTo = 'fr';
+
             let _bRes = _res.trans_result;
             let _bResURLs = [];
-            
+            let _resTokeniser;
+
             // 1. Make paraphrase URLs for each translated token
-            _bRes.map((res) => {
-                let _resTokeniser = new Tokeniser(res.dst, _bTo, _bTo);
-                _bResURLs.push(makeParaphraseURLs(_resTokeniser)[0]);
-            });
+            if(_bFrom === _bTo) {
+                _resTokeniser = new Tokeniser(_bRes[0].dst, _bTo, _bTo);
+                _bResURLs = makeParaphraseURLs(_resTokeniser);
+            } else {
+                _bRes.map((res) => {
+                    _resTokeniser = new Tokeniser(res.dst, _bTo, _bTo);
+                    _bResURLs.push(makeParaphraseURLs(_resTokeniser)[0]);
+                });
+            }
+
+            console.log(_bResURLs);
             
             // 2. Fetch paraphrases
             fetchAll(_bResURLs, (pResponses) => {
@@ -471,8 +479,8 @@ var bilingualCallback = function(tokeniser, responses) {
                 pResponses.forEach((pResponse, index) => {
                     // 3. Form translation object
                     let _translation = {
-                        source: _bRes[index].src,
-                        target: _bRes[index].dst,
+                        source: _bFrom === _bTo ? pResponse[0].word : _bRes[index].src,
+                        target: _bFrom === _bTo ? pResponse[0].word : _bRes[index].dst,
                         paraphrases: []
                     }
 
@@ -533,6 +541,8 @@ var makeParaphraseURLs = function(tokeniser) {
  * Callback function for bilingual translation API
  * @param {Tokeniser} tokeniser     Oringinal tokeniser instance
  * @param {string[]} responses      Bilingual API response
+ * 
+ * TODO Adapt bilingualcallback code
  */
 var paraphraseCallback = function(tokeniser, responses) {
     console.log(`Paraphrase Response`, responses);
@@ -545,7 +555,7 @@ var paraphraseCallback = function(tokeniser, responses) {
 /**
  * Event registration
  */
-// On extension installation
+// On extension installed
  Browser.runtime.onInstalled.addListener((details) => {
     console.log('ServiceWorker loaded', details);
 
@@ -557,29 +567,35 @@ var paraphraseCallback = function(tokeniser, responses) {
             contexts: ['selection']
         });
     }
-
-    // 2. Set S-Lang & T-Lang to 'auto' (source) and 'en' (target) in Browser.storage.local
-    Browser.storage.local.set({ srclang: sourceLanguage });
-    Browser.storage.local.set({ tarlang: targetLanguage });
+    
+    // 3. Set/reset S-Lang & T-Lang to 'auto' (source) and 'en' (target) in Browser.storage.local
+    Browser.storage.local.set({ srclang: sourceLanguage, tarlang: targetLanguage });
  });
 
+ // On storage changed (for language synchronisation)
+ Browser.storage.onChanged.addListener((changes, areaName) => {
+    for(let key in changes) {
+        if(key === 'srclang') sourceLanguage = changes[key].newValue;
+        if(key === 'tarlang') targetLanguage = changes[key].newValue;
+    }
+
+    console.log(`Language: ${sourceLanguage} -> ${targetLanguage}`);
+});
+
 // On registered item clicked
-Browser.contextMenus.onClicked.addListener((info, tab) => {
+Browser.contextMenus.onClicked.addListener(async (info, tab) => {
     let _selText = info.selectionText;
 
     if(_selText) {
-        // 1. Get current S-Lang & T-Lang from Browser.storage.local
-        retrieveLangs();
-
-        // 2. Register selected text in tokeniser
+        // 1. Register selected text in tokeniser
         let _tokeniser = new Tokeniser(_selText);
         
-        // 3. Construct URLs from tokeniser;
+        // 2. Construct URLs from tokeniser;
         let _urls = _tokeniser.isBilingual
             ? makeBilingualURLs(_tokeniser)
             : makeParaphraseURLs(_tokeniser);
         
-        // 4. Fetch all URLs and pass result to ContentScript
-        fetchAll(_urls, (res) => _tokeniser.isBilingual ? bilingualCallback(_tokeniser, res) : paraphraseCallback(_tokeniser, res));
+        // 3. Fetch all URLs and pass result to ContentScript
+        await fetchAll(_urls, (res) => _tokeniser.isBilingual ? bilingualCallback(_tokeniser, res) : paraphraseCallback(_tokeniser, res));
     }
 });

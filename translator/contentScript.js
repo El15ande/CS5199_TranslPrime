@@ -1,35 +1,7 @@
-/**
- * Throttle minimal duration in ms
- * This value must be larger than 1000 due to BAIDU API limitation
- */
-const THROTTLE_INTERVAL = 2000;
-
-// Default source language (the language of selected input)
-var defaultSrcLang = 'auto';
-// Default target language (the language of output)
-var defaultTarLang = 'en';
-
-// Global browser adaption
-// TODO Check borwser adaptivity
-var Browser = chrome || browser;
+// Global browser
+var Browser = chrome || browser; // TODO Check other browser adaptivity
 
 
-/**
- * Translation main process
- */
-var translateSelection = function() {
-    // 1. Retrive webpage selection info.
-    let _selection = window.getSelection();
-    if(_selection.type !== 'Range') return;
-
-    // 2. Create webpage pop-menu
-    let _newDiv = createPopMenu(_selection);
-    document.body.appendChild(_newDiv);
-
-    // 3. Invoke service worker to translate texts through APIs
-    // 4. Display translation result by appending pop-menu
-    translateText(_selection, _newDiv);
-}
 
 /**
  * Create the div for overall pop-menu
@@ -216,51 +188,21 @@ var translateText = function(selection, menu) {
     });
 }
 
-/**
- * Throttle: execute given function only once in the given duration
- * @param {function} func   function to be throttled
- * @param {number} interval     delay duration
- */
-var throttle = function(func, interval) {
-    let _prev = 0;
 
-    // Closure
-    return function(...args) {
-        let _now = new Date();
-
-        if(_now - _prev >= interval) {
-            func(...args);
-            _prev = _now;
-        }
-    };
-}
 
 /**
  * Script main process
  */
 console.log('ContentScript loaded');
 
-// 1. Retrieve translation languages
-retrieveLanguage();
-
-
-
 /**
  * Event registration
  */
-// document.onmouseup = throttle(translateSelection, THROTTLE_INTERVAL);
-
-/**
- * Message event handler
- */
+// On received message from ServiceWorker
  Browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if(message.srclang) {
-        defaultSrcLang = message.srclang;
-        console.log(`New source language: ${message.srclang}`);
-    } else if(message.tarlang) {
-        defaultTarLang = message.tarlang;
-        console.log(`New target language: ${message.tarlang}`);
-    }
+    console.log(message, sender, sendResponse);
+
+    // TODO Generate context menu
 
     return true;
 });
