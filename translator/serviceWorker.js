@@ -4,6 +4,8 @@ const BAIDU_APPID = '20210225000706883';
 const BAIDU_KEY = 'qQZh8SEkTNffxbK3vevy';
 // Default P-API
 const GDICT_DOMAIN = 'https://api.dictionaryapi.dev/api/v2/entries';
+// Number of paraphrase strings contained
+const PARAPHRASE_AMOUNT = 3;
 
 
 
@@ -54,6 +56,7 @@ const GDICT_DOMAIN = 'https://api.dictionaryapi.dev/api/v2/entries';
  * 
  * @public get isBilingual (#isBilingual)
  * 
+ * @public getToken
  * @public toAPIFormat
  */
  class Tokeniser {
@@ -75,14 +78,24 @@ const GDICT_DOMAIN = 'https://api.dictionaryapi.dev/api/v2/entries';
         // Tokenisation
         // Space-separated languages will be tokenised by splitting
         let _text = text.includes('\n') ? text.replace(/\n/g, ' ') : text;
-
-        this.#tokens = _text
-            .replace(/[^ A-z\u4e00-\u9fa5]/g, '')
-            .split(' ');
+        let _tokens = _text.replace(/[^ A-z\u4e00-\u9fa5]/g, '').split(' ');
+        // Remove duplicated tokens
+        this.#tokens = Array.from(new Set(_tokens));            
     }
 
     get isBilingual() {
         return this.#isBilingual;
+    }
+
+    /**
+     * Get token from specified position
+     * @param {number} index    Token position 
+     * @returns {string}        Token string
+     */
+    getToken(index) {
+        return (index > -1 && index < this.#tokens.length)
+            ? this.#tokens[index]
+            : '';
     }
 
     /**
@@ -468,24 +481,24 @@ var bilingualCallback = function(tokeniser, responses) {
                     _bResURLs.push(makeParaphraseURLs(_resTokeniser)[0]);
                 });
             }
-
-            console.log(_bResURLs);
             
             // 2. Fetch paraphrases
             fetchAll(_bResURLs, (pResponses) => {
-                const PARAPHRASE_AMOUNT = 3;
                 let _translations = [];
 
                 pResponses.forEach((pResponse, index) => {
                     // 3. Form translation object
                     let _translation = {
-                        source: _bFrom === _bTo ? pResponse[0].word : _bRes[index].src,
-                        target: _bFrom === _bTo ? pResponse[0].word : _bRes[index].dst,
+                        target: '',
+                        source: '',
                         paraphrases: []
                     }
 
                     // 4. Add paraphrases
                     if(Array.isArray(pResponse)) {
+                        _translation.target = _bFrom === _bTo ? pResponse[0].word : _bRes[index].dst;
+                        _translation.source = _bFrom === _bTo ? pResponse[0].word : _bRes[index].src;
+
                         pResponse.forEach((pRes) => {
                             _translation.paraphrases.push({
                                 word: pRes.word,
@@ -493,7 +506,9 @@ var bilingualCallback = function(tokeniser, responses) {
                                 definitions: pRes.meanings[0].definitions.map((def) => def.definition).slice(0, PARAPHRASE_AMOUNT)
                             });
                         });
-                    } else { // TODO Error handling
+                    } else {
+                        // TODO Error GDICT handling
+                        _translation.target = tokeniser.getToken(index);
                     }
 
                     _translations.push(_translation);
@@ -501,10 +516,16 @@ var bilingualCallback = function(tokeniser, responses) {
 
                 // 5. Send translation result to ContentScript
                 Browser.tabs.query(tabQueryInfo, (tabs) => {
-                    Browser.tabs.sendMessage(tabs[0].id, { _translations });
+                    if(Array.isArray(tabs) && tabs.length > 0) {
+                        Browser.tabs.sendMessage(tabs[0].id, { _translations });
+                    } else {
+                        // TODO Error handling w/ current tabs
+                        console.log('Tabs not found', _translations);
+                    }
                 });
             });
-        } else if(_res.hasOwnProperty('error_code')) { // TODO Error handling
+        } else if(_res.hasOwnProperty('error_code')) {
+            // TODO Error BAIDU handling
         }
 
     } else {
@@ -541,13 +562,55 @@ var makeParaphraseURLs = function(tokeniser) {
  * Callback function for bilingual translation API
  * @param {Tokeniser} tokeniser     Oringinal tokeniser instance
  * @param {string[]} responses      Bilingual API response
- * 
- * TODO Adapt bilingualcallback code
  */
 var paraphraseCallback = function(tokeniser, responses) {
     console.log(`Paraphrase Response`, responses);
 
-    // TODO Add paraphrase response
+    if(paraphraseAPI.domain === GDICT_DOMAIN) {
+        let _translations = [];
+
+        if(Array.isArray(responses)) {
+            responses.forEach((response, index) => {
+                // 1. Form translation object
+                let _translation = {
+                    target: '',
+                    paraphrases: []
+                }
+
+                // 2. Add paraphrases
+                if(Array.isArray(response)) {
+                    _translation.target = response[0].word;
+                    
+                    response.forEach((res) => {
+                        _translation.paraphrases.push({
+                            word: res.word,
+                            pos: res.meanings[0].partOfSpeech,
+                            definitions: res.meanings[0].definitions.map((def) => def.definition).slice(0, PARAPHRASE_AMOUNT)
+                        });
+                    });
+                } else {
+                    // TODO Error GDICT handling
+                    _translation.target = tokeniser.getToken(index);
+                }
+                
+                _translations.push(_translation);
+            });
+
+            // 3. Send translation result to ContentScript
+            Browser.tabs.query(tabQueryInfo, (tabs) => {
+                if(Array.isArray(tabs) && tabs.length > 0) {
+                    Browser.tabs.sendMessage(tabs[0].id, { _translations });
+                } else {
+                    // TODO Error handling w/ current tabs
+                    console.log('Tabs not found', _translations);
+                }
+            });
+        } else {
+            // TODO Error GDICT handling
+        }
+    } else {
+        // Modifications for new paraphrase translation API
+    }
 }
 
 

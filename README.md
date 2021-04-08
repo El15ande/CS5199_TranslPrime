@@ -33,10 +33,9 @@ If user changes bilingual/paraphrase API to customised translation API which may
 - Default API configuration
   - `isDefault: boolean`: whether the default API is used
 - Translations
-  - `translations: Translation[]`: array of translations
-    - `Translation.source: string`: original token
+  - `_translations: Translation[]`: array of translations
     - `Translation.target: string`: translated token
+    - `Translation.source: string`: original token (optional)
     - `Translation.paraphrase: Paraphrase[]`: array of paraphrases (optional)
-      - `Paraphrase.word: string`: word form
       - `Paraphrase.pos: string`: word PoS
       - `Paraphrase.definitions: string[]`: word definitions
