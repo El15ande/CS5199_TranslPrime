@@ -6,6 +6,8 @@ const BAIDU_KEY = 'qQZh8SEkTNffxbK3vevy';
 const GDICT_DOMAIN = 'https://api.dictionaryapi.dev/api/v2/entries';
 // Number of paraphrase strings contained
 const PARAPHRASE_AMOUNT = 3;
+// Tokenisation Regex
+const TOKEN_REGEX = /[^ A-zÀ-Ÿ-\u4e00-\u9fa5]/g;
 
 
 
@@ -15,9 +17,8 @@ const PARAPHRASE_AMOUNT = 3;
  * @private {string} #domain    API HTTP(S) domain
  * @private {object} #keys      API keys for different service requirements
  * 
- * @public get domain (#domain)
- * 
- * @public getKey
+ * @public {string} domain
+ * @public {function} getKey
  */
  class TranslationAPI {
     #type = false;
@@ -47,17 +48,17 @@ const PARAPHRASE_AMOUNT = 3;
 }
 
 /**
- * Selection text tokeniser
+ * Text tokeniser
  * @private {string} #text          Original text
  * @private {string} #srclang       Language code snapshot of the source text
  * @private {string} #tarlang       Language code snapshot of the target translation
  * @private {boolean} #isBilingual  Flag of bilingual translation (TRUE: bilingual) (FALSE: paraphrase)
  * @private {string[]} #tokens      Separated tokens
  * 
- * @public get isBilingual (#isBilingual)
- * 
- * @public getToken
- * @public toAPIFormat
+ * @public {boolean} isBilingual
+ * @public {string[]} tokens
+ * @public {object} APIFormat
+ * @public {function} getToken
  */
  class Tokeniser {
     #text = '';
@@ -78,7 +79,7 @@ const PARAPHRASE_AMOUNT = 3;
         // Tokenisation
         // Space-separated languages will be tokenised by splitting
         let _text = text.includes('\n') ? text.replace(/\n/g, ' ') : text;
-        let _tokens = _text.replace(/[^ A-z\u4e00-\u9fa5]/g, '').split(' ');
+        let _tokens = _text.replace(TOKEN_REGEX, '').split(' ');
         // Remove duplicated tokens
         this.#tokens = Array.from(new Set(_tokens));            
     }
@@ -87,22 +88,14 @@ const PARAPHRASE_AMOUNT = 3;
         return this.#isBilingual;
     }
 
-    /**
-     * Get token from specified position
-     * @param {number} index    Token position 
-     * @returns {string}        Token string
-     */
-    getToken(index) {
-        return (index > -1 && index < this.#tokens.length)
-            ? this.#tokens[index]
-            : '';
+    get tokens() {
+        return this.#tokens;
     }
 
     /**
-     * Tokenise #text into an array of strings
      * @returns {object}    Token object (see Readme for detail)
      */
-    toAPIFormat() {
+    get APIFormat() {
         let tokenObj = {
             // S-Lang is auto || S-Lang not equal to T-Lang
             isBilingual: this.#isBilingual,
@@ -117,6 +110,17 @@ const PARAPHRASE_AMOUNT = 3;
         }
 
         return tokenObj;
+    }
+
+    /**
+     * Get token from specified position
+     * @param {number} index    Token position 
+     * @returns {string}        Token string
+     */
+    getToken(index) {
+        return (index > -1 && index < this.#tokens.length)
+            ? this.#tokens[index]
+            : '';
     }
 }
 
@@ -417,7 +421,7 @@ var makeBilingualURLs = function(tokeniser) {
     console.log(`Bilingual Request`, tokeniser);
 
     let urls = [];
-    let _tokenObj = tokeniser.toAPIFormat();
+    let _tokenObj = tokeniser.APIFormat;
 
     if(bilingualAPI.domain === BAIDU_DOMAIN) {
         // Default bilingual translation API: BAIDU
@@ -467,65 +471,16 @@ var bilingualCallback = function(tokeniser, responses) {
             if(_bFrom === 'fra') _bFrom = 'fr';
             if(_bTo === 'fra') _bTo = 'fr';
 
-            let _bRes = _res.trans_result;
-            let _bResURLs = [];
-            let _resTokeniser;
-
             // 1. Make paraphrase URLs for each translated token
-            if(_bFrom === _bTo) {
-                _resTokeniser = new Tokeniser(_bRes[0].dst, _bTo, _bTo);
-                _bResURLs = makeParaphraseURLs(_resTokeniser);
-            } else {
-                _bRes.map((res) => {
-                    _resTokeniser = new Tokeniser(res.dst, _bTo, _bTo);
-                    _bResURLs.push(makeParaphraseURLs(_resTokeniser)[0]);
-                });
-            }
-            
-            // 2. Fetch paraphrases
-            fetchAll(_bResURLs, (pResponses) => {
-                let _translations = [];
+            let _bRes = _res.trans_result;
+            let _newToken = (_bFrom === _bTo) ? _bRes[0].dst : _bRes.map((res) => res.dst).join(' ');
+            let _resTokeniser = new Tokeniser(_newToken, _bTo, _bTo);
+            let _bResURLs = makeParaphraseURLs(_resTokeniser);
 
-                pResponses.forEach((pResponse, index) => {
-                    // 3. Form translation object
-                    let _translation = {
-                        target: '',
-                        source: '',
-                        paraphrases: []
-                    }
-
-                    // 4. Add paraphrases
-                    if(Array.isArray(pResponse)) {
-                        _translation.target = _bFrom === _bTo ? pResponse[0].word : _bRes[index].dst;
-                        _translation.source = _bFrom === _bTo ? pResponse[0].word : _bRes[index].src;
-
-                        pResponse.forEach((pRes) => {
-                            _translation.paraphrases.push({
-                                word: pRes.word,
-                                pos: pRes.meanings[0].partOfSpeech,
-                                definitions: pRes.meanings[0].definitions.map((def) => def.definition).slice(0, PARAPHRASE_AMOUNT)
-                            });
-                        });
-                    } else {
-                        // TODO Error GDICT handling
-                        _translation.target = tokeniser.getToken(index);
-                    }
-
-                    _translations.push(_translation);
-                });
-
-                // 5. Send translation result to ContentScript
-                Browser.tabs.query(tabQueryInfo, (tabs) => {
-                    if(Array.isArray(tabs) && tabs.length > 0) {
-                        Browser.tabs.sendMessage(tabs[0].id, { _translations });
-                    } else {
-                        // TODO Error handling w/ current tabs
-                        console.log('Tabs not found', _translations);
-                    }
-                });
-            });
+            // 2. Fetch & process w/ paraphrase callback
+            fetchAll(_bResURLs, (newResponse) => paraphraseCallback(_resTokeniser, newResponse, tokeniser.tokens));
         } else if(_res.hasOwnProperty('error_code')) {
-            // TODO Error BAIDU handling
+            console.error('Default bilingual API error');
         }
 
     } else {
@@ -543,8 +498,8 @@ var bilingualCallback = function(tokeniser, responses) {
 var makeParaphraseURLs = function(tokeniser) {
     console.log(`Paraphrase Request`, tokeniser);
 
-    let urls = []
-    let _tokenObj = tokeniser.toAPIFormat();
+    let urls = [];
+    let _tokenObj = tokeniser.APIFormat;
 
     if(paraphraseAPI.domain === GDICT_DOMAIN) {
         urls = _tokenObj.tokens.map((token) => `${paraphraseAPI.domain}/${_tokenObj.lang}/${token}`);
@@ -562,8 +517,9 @@ var makeParaphraseURLs = function(tokeniser) {
  * Callback function for bilingual translation API
  * @param {Tokeniser} tokeniser     Oringinal tokeniser instance
  * @param {string[]} responses      Bilingual API response
+ * @param {string[]} sources        Source tokens from bilingual callback (optional)
  */
-var paraphraseCallback = function(tokeniser, responses) {
+var paraphraseCallback = function(tokeniser, responses, sources=[]) {
     console.log(`Paraphrase Response`, responses);
 
     if(paraphraseAPI.domain === GDICT_DOMAIN) {
@@ -580,16 +536,16 @@ var paraphraseCallback = function(tokeniser, responses) {
                 // 2. Add paraphrases
                 if(Array.isArray(response)) {
                     _translation.target = response[0].word;
-                    
+                    _translation.source = sources[index] || sources[0];
+
                     response.forEach((res) => {
                         _translation.paraphrases.push({
-                            word: res.word,
+                            prototype: res.word,
                             pos: res.meanings[0].partOfSpeech,
                             definitions: res.meanings[0].definitions.map((def) => def.definition).slice(0, PARAPHRASE_AMOUNT)
                         });
                     });
                 } else {
-                    // TODO Error GDICT handling
                     _translation.target = tokeniser.getToken(index);
                 }
                 
@@ -601,12 +557,11 @@ var paraphraseCallback = function(tokeniser, responses) {
                 if(Array.isArray(tabs) && tabs.length > 0) {
                     Browser.tabs.sendMessage(tabs[0].id, { _translations });
                 } else {
-                    // TODO Error handling w/ current tabs
-                    console.log('Tabs not found', _translations);
+                    console.error('Tabs not found', _translations);
                 }
             });
         } else {
-            // TODO Error GDICT handling
+            console.error('Default paraphrase API error');
         }
     } else {
         // Modifications for new paraphrase translation API
@@ -620,7 +575,7 @@ var paraphraseCallback = function(tokeniser, responses) {
  */
 // On extension installed
  Browser.runtime.onInstalled.addListener((details) => {
-    console.log('ServiceWorker loaded', details);
+    console.log('TranslPrime ServiceWorker loaded', details);
 
     // 1. Register context menu item(s)
     if(Browser.contextMenus) {
@@ -636,7 +591,7 @@ var paraphraseCallback = function(tokeniser, responses) {
  });
 
  // On storage changed (for language synchronisation)
- Browser.storage.onChanged.addListener((changes, areaName) => {
+ Browser.storage.onChanged.addListener((changes) => {
     for(let key in changes) {
         if(key === 'srclang') sourceLanguage = changes[key].newValue;
         if(key === 'tarlang') targetLanguage = changes[key].newValue;
@@ -646,7 +601,7 @@ var paraphraseCallback = function(tokeniser, responses) {
 });
 
 // On registered item clicked
-Browser.contextMenus.onClicked.addListener(async (info, tab) => {
+Browser.contextMenus.onClicked.addListener(async (info) => {
     let _selText = info.selectionText;
 
     if(_selText) {

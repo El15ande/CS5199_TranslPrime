@@ -1,208 +1,239 @@
+/**
+ * Translation menu HTMLElement node
+ * @private {number} #tier                    Level as a HTMLElement tree node (mandatory)
+ * @private {TranslMenuElement[]} #children   Child-nodes
+ * 
+ * @private {string} #type      HTMLElement subclass type (mandatory)
+ * @private {string} #id        HTMLElement.id (mandatory)
+ * @private {string[]} #class   HTMLElement.class
+ * @private {object} #style     HTMLElement.style
+ * 
+ * @private {object} #attrs      Other HTMLElement attributes
+ * 
+ * @public {HTMLElement} HTMLElement
+ * @public addChild
+ */
+class TranslMenuElement {
+    // Tree attributes
+    #tier = 0;
+    #children = [];
+    // HTMLElement attributes
+    #type = '';
+    #id = '';
+    #class = [];
+    #style = {};
+    #attrs = {};
+
+    constructor(info) {
+        this.#tier = info.tier;
+        this.#children = [];
+
+        this.#type = info.type;
+        this.#id = info.id;
+        this.#class = info.class || [];
+        this.#style = info.style || {};
+        this.#attrs = info.attrs || {};
+    }
+
+    /**
+     * @returns {HTMLElement}   Recursively-embedded HTMLElement
+     */
+    get HTMLElement() {
+        let element = document.createElement(this.#type);
+
+        // 1. Add HTMLElement attributes
+        element.id = this.#id;
+        
+        for(let s in this.#style) {
+            element.style[s] = this.#style[s];
+        }
+
+        for(let attr in this.#attrs) {
+            element[attr] = this.#attrs[attr];
+        }
+
+        // 2. Append children
+        this.#children.forEach((child) => element.appendChild(child.HTMLElement));
+        
+        return element;
+    }
+
+    /**
+     * Add a child node
+     * @param {TranslMenuElement || TranslMenuElement[]} tme   Child element(s) 
+     */
+    addChild(tme) {
+        if(Array.isArray(tme)) {
+            this.#children.push(...tme);
+        } else {
+            this.#children.push(tme);
+        }
+    }
+}
+
+
+
 // Global browser
 var Browser = chrome || browser; // TODO Check other browser adaptivity
 
 
 
 /**
- * Create the div for overall pop-menu
- * @param {object} selection    current webpage selection
- * @return {HTMLDivElement}     pop-menu div element
+ * Get selection area info. from window
+ *  1. x (number): translation menu absolute x-position
+ *  2. y (number): translation menu absolute y-position
+ * 
+ * @returns {object}        Selection info.
  */
-var createPopMenu = function(selection) {
-    // 1. Get selection range {DOMrect} coordinates
-    let _DOMRect = selection.getRangeAt(0).getBoundingClientRect();
+var getWindowSelection = function() {
+    let selection = {
+        x: 0,
+        y: 0,
+    };
 
-    // 2.1 Create div element
-    let overallDiv = document.createElement('div');
-    overallDiv.id = 'translationOverallMenu';
+    // Locate selection position
+    let _sel = window.getSelection();
 
-    // 2.2 Allocate position
-    overallDiv.style.position = 'absolute';
-    overallDiv.style.zIndex = Number.MAX_SAFE_INTEGER;
-    overallDiv.style.left = `${Math.ceil(_DOMRect.left)}px`;
-    overallDiv.style.top = `${Math.ceil(_DOMRect.top + window.pageYOffset)}px`;
-    
-    overallDiv.style.minWidth = '200px';
-    overallDiv.style.minHeight = '100px';
-    overallDiv.style.borderRadius = '10px';
-    overallDiv.style.boxShadow = '5px 10px 10px #AAAAAA';
-    overallDiv.style.backgroundColor = '#C3E5DE';
+    if(_sel.type === 'Range') {
+        let _DOMRect = _sel.getRangeAt(0).getBoundingClientRect();
 
-    // 2.3 Add close button at the top
-    let _close = document.createElement('button');
-    // TODO close button style
-    _close.type = 'button';
-    _close.style.float = 'right';
-    _close.onclick = () => document.getElementById('translationOverallMenu').remove();
-    overallDiv.appendChild(_close);
+        selection.x = _DOMRect.left;
+        selection.y = _DOMRect.top + window.pageYOffset + _DOMRect.height;
+    }
 
-    return overallDiv;
+    return selection;
 }
 
-/**
- * Create the div element for each word translation
- * @param {object} result   translation result
- * @param {string} word     original word
- * @return {HTMLDivElement[]}   array of pop-menu item div elements
- */
-var createPopMenuItem = function(result, word) {
-    let _createItemDiv = function() {
-        let _item = document.createElement('div');
-        _item.className = "meaning";
-        _item.style.margin = '5px 5px 5px 5px';
-        _item.style.color = '#000000';
-        _item.style.fontFamily = `'Google Sans', 'sans-serif'`;
+var createMenuEntry = function(index, translation) {
+    let _entryID = `translentry${index+1}`;
 
-        return _item;
-    }
+    let _createEntryTitle = function(target, source='') {
+        let _source = (source && target.toLocaleLowerCase() !== source.toLocaleLowerCase()) ? ` [${source}]` : '';
 
-    let _createTitle = function(t) {
-        let _title = document.createElement('span');
-        _title.textContent = t;
-        _title.style.fontWeight = 'bold';
-        _title.style.fontSize = '16px';
-
-        return _title;
-    }
-
-    let _createPOS = function(pos) {
-        let _pos = document.createElement('span');
-        _pos.textContent = pos;
-        _pos.style.marginLeft = '5px';
-        _pos.style.fontWeight = 'normal';
-        _pos.style.fontStyle = 'italic';
-        _pos.style.fontSize = '12px';
-
-        return _pos;
-    }
-
-    let _createDefinition = function(defs, n) {
-        let _defs = [];
-        let _count = 1;
-
-        for(let i = 0; i < n; i++) {
-            if(!defs[i]) continue;
-
-            let _def = document.createElement('p');
-            _def.textContent = `${_count++}. ${defs[i].definition}`;
-            _def.style.fontSize = '14px';
-            _def.style.margin = '4px 0 4px 0';
-            _defs.push(_def);
-        }
-
-        return _defs;
-    }
-
-    let _createEmptyWord = function() {
-        let _meaningDiv = _createItemDiv();
-        let _wordDiv = _createTitle(word);
-
-        let _emptydef = document.createElement('p');
-        _emptydef.textContent = `No definition found.`;
-        _emptydef.style.fontSize = '14px';
-
-        _meaningDiv.appendChild(_wordDiv);
-        _meaningDiv.appendChild(_emptydef);
-
-        meaningDivArray.push(_meaningDiv);
-    }
-
-    let meaningDivArray = [];
-
-    if(result && result.meanings && Array.isArray(result.meanings)) {
-        if(result.meanings.length === 0) _createEmptyWord();
-
-        result.meanings.forEach((meaning) => {
-            //  1. Create div element
-            let _meaningDiv = _createItemDiv();
-            
-            //  2. Append word title & current POS
-            let _wordDiv = _createTitle((result && result.word) ? result.word : word);
-            let _POSDiv = _createPOS(meaning.partOfSpeech ? meaning.partOfSpeech : '');
-            _wordDiv.appendChild(_POSDiv);
-            _meaningDiv.appendChild(_wordDiv);
-            
-            //  3. Append first 3 definitions
-            if(meaning.definitions && Array.isArray(meaning.definitions)) {
-                let _definitionDivs = _createDefinition(meaning.definitions, 3);
-                _definitionDivs.map((d) => _meaningDiv.appendChild(d));
+        return new TranslMenuElement({
+            tier: 2,
+            type: 'span',
+            id: `${_entryID}-title`,
+            style: {
+                fontSize: '16px',
+                fontWeight: 'bold'
+            },
+            attrs: {
+                textContent: target + _source
             }
-
-            meaningDivArray.push(_meaningDiv);
         });
-    } else {
-        _createEmptyWord();
     }
 
-    return meaningDivArray;
-}
+    let _createEntryParaphrase = function(paraphrase, pindex) {
+        let _paraphraseID = `paraphrase${pindex+1}`;
 
-/**
- * Create the div element for note section
- * TODO Note module
- */
-var createPopMenuNote = function() {
-    return document.createElement('input');
-}
-
-/**
- * Send the selected text to service worker & retrive translation info.
- * @param {object} selection    current webpage selection
- * @param {HTMLDivElement} menu     menu div element 
- */
-var translateText = function(selection, menu) {
-    let _tokens = selection.toString();
-    // TODO Check selection.toString() validity
-
-    // 1. Tokenise selected texts
-    let _tokeniser = new Tokeniser(_tokens);
-
-    // 2. Send message
-    Browser.runtime.sendMessage(_tokeniser.tokenise(), (response) => {
-        console.log('Translation output', response);
-        
-        if(response && Array.isArray(response)) {
-            // TODO More detail here
-            if(response[0].trans_result && Array.isArray(response[0].trans_result) && response[0].trans_result.length > 0) {
-                let _ftokens =  response[0].trans_result[0].dst.split('\n');
-
-                Browser.runtime.sendMessage({
-                    tokens: _ftokens,
-                    isBilingual: false,
-                    lang: response[0].to
-                }, (response2) => {
-                    console.log('Final response', response2);
-
-                    response2.forEach((res, i) => {
-                        // 3. Append pop-menu with translation results
-                        let _items = createPopMenuItem(res[0], _ftokens[i]);
-                        _items.map((i) => menu.appendChild(i));
-                    });
-                });
+        let pDiv = new TranslMenuElement({
+            tier: 2,
+            type: 'div',
+            id: `${_entryID}-${_paraphraseID}`,
+            style: {
+                display: 'block'
             }
+        });
+
+        pDiv.addChild(new TranslMenuElement({
+            tier: 3,
+            type: 'span',
+            id: `${_paraphraseID}-pos`,
+            style: {
+                fontSize: '12px',
+                fontWeight: 'bold'
+            },
+            attrs: {
+                textContent: paraphrase.pos
+            }
+        }));
+
+        pDiv.addChild(paraphrase.definitions.map((def, di) => new TranslMenuElement({
+            tier: 3,
+            type: 'p',
+            id: `${_paraphraseID}-definition${di+1}`,
+            style: {
+                margin: '0px',
+                fontSize: '12px'
+            },
+            attrs: {
+                textContent: `- ${def}`
+            }
+        })));
+
+        return pDiv;
+    }
+
+    // 1. Create entry HTMLDivElement
+    let entry = new TranslMenuElement({
+        tier: 1,
+        type: 'div',
+        id: `translprime-${_entryID}`,
+        style: {
+            margin: '10px 5px 10px 5px'
         }
-        
-        //  4. Append pop-menu with note section
-        // let _noteDiv = createPopMenuNote();
-        // menu.appendChild(_noteDiv);
     });
+
+    // 2.1 Add entry title
+    entry.addChild(_createEntryTitle(translation.target, translation.source));
+    // 2.2 Add entry paraphrases
+    entry.addChild(translation.paraphrases.map((p, pi) => _createEntryParaphrase(p, pi)));
+
+    return entry;
 }
 
 
-
-/**
- * Script main process
- */
+// ContentScript global process
 console.log('ContentScript loaded');
 
 /**
  * Event registration
  */
 // On received message from ServiceWorker
- Browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log(message, sender, sendResponse);
+ Browser.runtime.onMessage.addListener((message) => {
+    console.log('Translation', message._translations);
 
-    // TODO Generate context menu
+    // 0. Remove existing menu
+    let _existMenu = document.getElementById('translprime-translmenu');
+    if(_existMenu) _existMenu.remove();
+
+    // 1. Get selection info.
+    let _winSel = getWindowSelection();
+
+    // 2. Create overall translation menu
+    let _overallMenu = new TranslMenuElement({
+        tier: 0,
+        type: 'div',
+        id: 'translprime-translmenu',
+        style: {
+            // Menu position
+            position: 'absolute',
+            zIndex: Number.MAX_SAFE_INTEGER,
+            left: `${_winSel.x}px`,
+            top: `${_winSel.y}px`,
+            // Menu size
+            minWidth: '100px',
+            minHeight: '100px',
+            // Menu style
+            borderRadius: '10px',
+            boxShadow: '5px 10px 10px #AAAAAA',
+            backgroundColor: '#3178C6',
+            // Font
+            color: '#FFFFFF',
+            fontFamily: `'Segoe UI Web (West European)', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif`
+        }
+    });
+
+    // 3. Create translation entries
+    message._translations.forEach((_transl, index) => {
+        let _translEntry = createMenuEntry(index, _transl);
+
+        _overallMenu.addChild(_translEntry);
+    });
+
+    // 4. Render
+    document.body.appendChild(_overallMenu.HTMLElement);
 
     return true;
 });

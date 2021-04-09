@@ -34,8 +34,28 @@ If user changes bilingual/paraphrase API to customised translation API which may
   - `isDefault: boolean`: whether the default API is used
 - Translations
   - `_translations: Translation[]`: array of translations
-    - `Translation.target: string`: translated token
+    - `Translation.target: string`: translated token (mandatory)
     - `Translation.source: string`: original token (optional)
     - `Translation.paraphrase: Paraphrase[]`: array of paraphrases (optional)
+      - `Paraphrase.prototype: string`: word prototype
       - `Paraphrase.pos: string`: word PoS
       - `Paraphrase.definitions: string[]`: word definitions
+
+### Translation menu DOM structure
+
+```HTML
+  <div id="translprime-translmenu" tier="0">
+    <div id="translprime-translentry1" tier="1">
+      <span id="translentry1-title" tier="2">Hello</span>
+      
+      <div id="translentry1-paraphrase1" tier="2">
+        <span id="paraphrase1-pos" tier="3">Noun</span>
+        <span id="paraphrase1-definition1" tier="3">A greeting.</span>
+        <!-- For n paraphrase results, id goes from paraphrasex-definition1 to paraphrase-definitionn -->
+      </div>
+    
+    </div>
+
+    <!-- For n translation results, id goes from translentry1 to translentryn -->
+  </div>
+```

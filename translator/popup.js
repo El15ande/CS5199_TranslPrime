@@ -2,8 +2,7 @@
 const LANGUAGE_CODES = {
     'en': 'English',
     'fr': 'French',
-    'de': 'German',
-    'es': 'Spanish'
+    'de': 'German'
 };
 
 
@@ -18,8 +17,6 @@ var Browser = chrome || browser; // TODO Check other browser adaptivity
  */
 // On window loaded
 window.onload = function(e) {
-    console.log('Popup loaded');
-
     // Create <option> element
     let _createOption = function(lang) {
         let _opt = document.createElement('option');
