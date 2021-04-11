@@ -43,6 +43,8 @@ class TranslMenuElement {
 
         // 1. Add HTMLElement attributes
         element.id = this.#id;
+
+        element.classList.add(...this.#class);
         
         for(let s in this.#style) {
             element.style[s] = this.#style[s];
@@ -76,6 +78,9 @@ class TranslMenuElement {
 // Global browser
 var Browser = chrome || browser; // TODO Check other browser adaptivity
 
+// Previous translation menu position
+var prevPosition = { x: 0, y: 0 }
+
 
 
 /**
@@ -87,8 +92,8 @@ var Browser = chrome || browser; // TODO Check other browser adaptivity
  */
 var getWindowSelection = function() {
     let selection = {
-        x: 0,
-        y: 0,
+        x: prevPosition.x,
+        y: prevPosition.y,
     };
 
     // Locate selection position
@@ -97,8 +102,15 @@ var getWindowSelection = function() {
     if(_sel.type === 'Range') {
         let _DOMRect = _sel.getRangeAt(0).getBoundingClientRect();
 
-        selection.x = _DOMRect.left;
-        selection.y = _DOMRect.top + window.pageYOffset + _DOMRect.height;
+        let _x = _DOMRect.left;
+        let _y = _DOMRect.top + window.pageYOffset + _DOMRect.height;
+
+        selection.x = _x;
+        selection.y = _y;
+
+        // Update prevPosition
+        prevPosition.x = _x;
+        prevPosition.y = _y;
     }
 
     return selection;
@@ -114,13 +126,8 @@ var createMenuEntry = function(index, translation) {
             tier: 2,
             type: 'span',
             id: `${_entryID}-title`,
-            style: {
-                fontSize: '16px',
-                fontWeight: 'bold'
-            },
-            attrs: {
-                textContent: target + _source
-            }
+            style: { fontSize: '18px', fontWeight: 'bold' },
+            attrs: { textContent: target + _source }
         });
     }
 
@@ -131,35 +138,23 @@ var createMenuEntry = function(index, translation) {
             tier: 2,
             type: 'div',
             id: `${_entryID}-${_paraphraseID}`,
-            style: {
-                display: 'block'
-            }
+            style: { display: 'block' }
         });
 
         pDiv.addChild(new TranslMenuElement({
             tier: 3,
             type: 'span',
             id: `${_paraphraseID}-pos`,
-            style: {
-                fontSize: '12px',
-                fontWeight: 'bold'
-            },
-            attrs: {
-                textContent: paraphrase.pos
-            }
+            style: { fontSize: '12px', fontWeight: 'bold' },
+            attrs: { textContent: paraphrase.pos }
         }));
 
         pDiv.addChild(paraphrase.definitions.map((def, di) => new TranslMenuElement({
             tier: 3,
             type: 'p',
             id: `${_paraphraseID}-definition${di+1}`,
-            style: {
-                margin: '0px',
-                fontSize: '12px'
-            },
-            attrs: {
-                textContent: `- ${def}`
-            }
+            style: { margin: '0px', fontSize: '12px' },
+            attrs: { textContent: `- ${def}` }
         })));
 
         return pDiv;
@@ -170,9 +165,7 @@ var createMenuEntry = function(index, translation) {
         tier: 1,
         type: 'div',
         id: `translprime-${_entryID}`,
-        style: {
-            margin: '10px 5px 10px 5px'
-        }
+        style: { margin: '10px 5px 20px 5px' }
     });
 
     // 2.1 Add entry title
@@ -232,7 +225,14 @@ console.log('ContentScript loaded');
         _overallMenu.addChild(_translEntry);
     });
 
-    // 4. Render
+    _overallMenu.addChild(new TranslMenuElement({ 
+        tier: 1, 
+        type: 'hr',
+        id: 'translprime-hr',
+        style: { margin: '0 5px 20px 5px' } 
+    }));
+
+    // Render
     document.body.appendChild(_overallMenu.HTMLElement);
 
     return true;

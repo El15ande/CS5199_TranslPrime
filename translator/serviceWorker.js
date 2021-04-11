@@ -67,7 +67,7 @@ const TOKEN_REGEX = /[^ A-zÀ-Ÿ-\u4e00-\u9fa5]/g;
     #isBilingual = false;
     #tokens = [];
 
-    constructor(text, srclang=sourceLanguage, tarlang=targetLanguage) {
+    constructor(text, srclang, tarlang) {
         this.#text = text;
         // Snapshots
         this.#srclang = srclang;
@@ -130,22 +130,13 @@ const TOKEN_REGEX = /[^ A-zÀ-Ÿ-\u4e00-\u9fa5]/g;
 var Browser = chrome || browser; // TODO Check other browser adaptivity
 
 // Browser.tabs.query info.
-var tabQueryInfo = {
-    active: true,
-    currentWindow: true
-};
+var tabQueryInfo = { active: true, currentWindow: true };
 
 // B-API 'socket'
 var bilingualAPI = new TranslationAPI(true, BAIDU_DOMAIN, { appid: BAIDU_APPID, key: BAIDU_KEY });
 
 // P-API 'socket'
 var paraphraseAPI = new TranslationAPI(false, GDICT_DOMAIN, {});
-
-// Current S-Lang (default: 'auto')
-var sourceLanguage = 'auto';
-
-// Current T-lang (default: 'en')
-var targetLanguage = 'en';
 
 
 
@@ -587,33 +578,25 @@ var paraphraseCallback = function(tokeniser, responses, sources=[]) {
     }
     
     // 3. Set/reset S-Lang & T-Lang to 'auto' (source) and 'en' (target) in Browser.storage.local
-    Browser.storage.local.set({ srclang: sourceLanguage, tarlang: targetLanguage });
+    Browser.storage.local.set({ srclang: 'auto', tarlang: 'en' });
  });
-
- // On storage changed (for language synchronisation)
- Browser.storage.onChanged.addListener((changes) => {
-    for(let key in changes) {
-        if(key === 'srclang') sourceLanguage = changes[key].newValue;
-        if(key === 'tarlang') targetLanguage = changes[key].newValue;
-    }
-
-    console.log(`Language: ${sourceLanguage} -> ${targetLanguage}`);
-});
 
 // On registered item clicked
 Browser.contextMenus.onClicked.addListener(async (info) => {
     let _selText = info.selectionText;
 
     if(_selText) {
-        // 1. Register selected text in tokeniser
-        let _tokeniser = new Tokeniser(_selText);
+        Browser.storage.local.get(['srclang', 'tarlang'], async (result) => {
+            // 1. Register selected text in tokeniser
+            let _tokeniser = new Tokeniser(_selText, result.srclang, result.tarlang);
         
-        // 2. Construct URLs from tokeniser;
-        let _urls = _tokeniser.isBilingual
-            ? makeBilingualURLs(_tokeniser)
-            : makeParaphraseURLs(_tokeniser);
-        
-        // 3. Fetch all URLs and pass result to ContentScript
-        await fetchAll(_urls, (res) => _tokeniser.isBilingual ? bilingualCallback(_tokeniser, res) : paraphraseCallback(_tokeniser, res));
+            // 2. Construct URLs from tokeniser;
+            let _urls = _tokeniser.isBilingual
+                ? makeBilingualURLs(_tokeniser)
+                : makeParaphraseURLs(_tokeniser);
+            
+            // 3. Fetch all URLs and pass result to ContentScript
+            await fetchAll(_urls, (res) => _tokeniser.isBilingual ? bilingualCallback(_tokeniser, res) : paraphraseCallback(_tokeniser, res));
+        });
     }
 });

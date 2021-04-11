@@ -45,15 +45,13 @@ window.onload = function(e) {
     }
 
     // 3. Retrieve S-Lang & T-Lang from Browser.storage.local
-    Browser.storage.local.get(['srclang'], (result) => {
-        if(result && result.srclang) {
+    Browser.storage.local.get(['srclang', 'tarlang'], (result) => {
+        if(result.srclang) {
             _srcSel.value = result.srclang;
             console.log(`Current S-Lang: ${result.srclang}`);
         }
-    });
 
-    Browser.storage.local.get(['tarlang'], (result) => {
-        if(result && result.tarlang) {
+        if(result.tarlang) {
             _tarSel.value = result.tarlang;
             console.log(`Current T-Lang: ${result.tarlang}`);
         }

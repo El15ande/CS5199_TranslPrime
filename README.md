@@ -2,6 +2,10 @@
 
 2020/0 MSci Project (CS5199): An Aid To Learning & Assessing To Read Foreign Language.
 
+## Setup
+
+- Google Chrome: install extensions through 'Extension' -> 'Load unpacked'
+
 ## Technology Stack
 
 - HTML/CSS
@@ -53,7 +57,6 @@ If user changes bilingual/paraphrase API to customised translation API which may
         <span id="paraphrase1-definition1" tier="3">A greeting.</span>
         <!-- For n paraphrase results, id goes from paraphrasex-definition1 to paraphrase-definitionn -->
       </div>
-    
     </div>
 
     <!-- For n translation results, id goes from translentry1 to translentryn -->
