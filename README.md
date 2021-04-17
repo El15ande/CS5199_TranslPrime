@@ -16,6 +16,13 @@
 
 - `srclang: string`: language of source text (S-Lang)
 - `tarlang: string`: language of target translation (T-Lang)
+- `notes: Note[]`: array of notes
+  - `Note.id: Date`: time of storage
+  - `Note.origins.srclang: string`: S-Lang
+  - `Note.origins.tarlang: string`: T-Lang
+  - `Note.origins.translations: Translation[]`: translation context
+  - `Note.title: string`: note pair title
+  - `Note.note: string`: note pair values
 
 ### API object configurations
 
@@ -55,10 +62,28 @@ If user changes bilingual/paraphrase API to customised translation API which may
       <div id="translentry1-paraphrase1" tier="2">
         <span id="paraphrase1-pos" tier="3">Noun</span>
         <span id="paraphrase1-definition1" tier="3">A greeting.</span>
-        <!-- For n paraphrase results, id goes from paraphrasex-definition1 to paraphrase-definitionn -->
+        
+        <!-- For n paraphrase results, id goes from paraphrasex-definition1 to paraphrase-definitionn (maximum: ServiceWorker.PARAPHRASE_AMOUNT) -->
       </div>
     </div>
 
     <!-- For n translation results, id goes from translentry1 to translentryn -->
+
+    <hr>
+
+    <hr>
+
+    <div id="translprime-buttons" tier="1">
+      <button type="button" id="translbutton-notebtn" tier="2">Add Note</button>
+      <button type="button" id="translbutton-closebtn" tier="2">Close</button>
+    </div>
+
+    <div id="translprime-noteinput" tier="1">
+      <input id="translnoteinput-title" tier="2">
+      <textarea id="translnoteinput-body" tier="2">
+      <span id="translnoteinput-hint" tier="2">...</span>
+      <button type="button" id="translnoteinput-savebtn" tier="2">Save</button>
+    </div>
+
   </div>
 ```

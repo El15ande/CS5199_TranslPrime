@@ -79,8 +79,7 @@ class TranslMenuElement {
 var Browser = chrome || browser; // TODO Check other browser adaptivity
 
 // Previous translation menu position
-var prevPosition = { x: 0, y: 0 }
-
+var prevPosition = { x: 0, y: 0 };
 
 
 /**
@@ -116,6 +115,64 @@ var getWindowSelection = function() {
     return selection;
 }
 
+
+
+/**
+ * Get TranslMenuElement template for a button
+ * @param {number} tier             Button tier
+ * @param {string} id               Button ID
+ * @param {string} textContent      Button text
+ * @param {function} onclick        Button onclick function
+ * @returns {TranslMenuElement}     Button TranslMenuElement template
+ */
+var getButtonTemplate = function(tier, id, textContent, onclick) {
+    return new TranslMenuElement({
+        tier, 
+        id,
+        type: 'button',
+        style: {
+            margin: '0 10px 10px',
+            border: '0px',
+            padding: '3px 6px',
+            maxWidth: '100px',
+            backgroundColor: '#FFFFFF',
+            fontSize: '15px',
+            color: '#808080'
+        },
+        attrs: { 
+            textContent, 
+            onclick,
+            type: 'button'
+        }
+    });
+}
+
+/**
+ * Get TranslMenuElement tempalte for a <hr>
+ * @param {number} tier             Hr tier
+ * @param {string} id               Hr ID
+ * @returns {TranslMenuElement}     Hr TranslMenuElement template
+ */
+var getHrTemplate = function(tier, id) {
+    return new TranslMenuElement({ 
+        tier, 
+        type: 'hr',
+        id,
+        style: { 
+            margin: '0 5px 10px 5px',
+            border: '1px solid #FFFFFF' 
+        } 
+    });
+}
+
+
+
+/**
+ * Create a single translation entry
+ * @param {number} index                Entry index 
+ * @param {Translation} translation     Translation result from ServiceWorker (see Readme for detail)
+ * @returns {TranslMenuElement}         TranslMenuElement storing the translation result 
+ */
 var createMenuEntry = function(index, translation) {
     let _entryID = `translentry${index+1}`;
 
@@ -165,7 +222,7 @@ var createMenuEntry = function(index, translation) {
         tier: 1,
         type: 'div',
         id: `translprime-${_entryID}`,
-        style: { margin: '10px 5px 20px 5px' }
+        style: { margin: '10px 5px' }
     });
 
     // 2.1 Add entry title
@@ -174,6 +231,115 @@ var createMenuEntry = function(index, translation) {
     entry.addChild(translation.paraphrases.map((p, pi) => _createEntryParaphrase(p, pi)));
 
     return entry;
+}
+
+/**
+ * Create the button set
+ * @returns {TranslMenuElement}     TranslMenuElement for the button set in tool area
+ */
+var createMenuButtons = function() {
+    let buttonSet = new TranslMenuElement({
+        tier: 1,
+        type: 'div',
+        id: 'translprime-buttons',
+        style: { 
+            margin: '0 5px',
+            display: 'flex',
+            'justify-content': 'space-around'
+        }
+    });
+
+    // Note button
+    buttonSet.addChild(getButtonTemplate(2, 'translbutton-notebtn', 'Add Note', (e) => {
+        let _this = document.getElementById('translbutton-notebtn');
+
+        if(_this.textContent === 'Add Note') {
+            document.getElementById('translprime-noteinput').style.display = 'grid';
+            _this.textContent = 'Close Note';
+        } else if(_this.textContent === 'Close Note') {
+            document.getElementById('translprime-noteinput').style.display = 'none';
+            _this.textContent = 'Add Note';
+        }
+    }));
+
+    // Close button
+    buttonSet.addChild(getButtonTemplate(2, 'translbutton-closebtn', 'Close Menu', 
+        (e) => document.getElementById('translprime-translmenu').remove()
+    ));
+
+    return buttonSet;
+}
+
+/**
+ * Create the note input set
+ * @param {Translation[]} translations  Translation results
+ * @returns {TranslMenuElement}         TranslMenuElement for the note input set in tool area
+ */
+var createMenuNoteInput = function(translations) {
+    let _getInputTemplate = function(id, type) {
+        return new TranslMenuElement({
+            tier: 2,
+            type,
+            id,
+            style: {
+                margin: '0 10px 10px 10px',
+                padding: '0',
+                border: '0',
+                maxWidth: '480px'
+            },
+            attrs: {
+                cols: 30,
+                placeholder: type === 'input' ? 'Title' : 'Note'
+            }
+        });
+    }
+
+    let noteInputSet = new TranslMenuElement({
+        tier: 1,
+        type: 'div',
+        id: 'translprime-noteinput',
+        style: { 
+            display: 'none',
+            position: 'center'
+        }
+    });
+
+    noteInputSet.addChild(_getInputTemplate('translnoteinput-title', 'input'));
+    noteInputSet.addChild(_getInputTemplate('translnoteinput-body', 'textarea'));
+    noteInputSet.addChild(new TranslMenuElement({
+        tier: 2,
+        type: 'span',
+        id: 'translnoteinput-hint',
+        style: { marginLeft: '10px', marginBottom: '10px', fontSize: '12px' },
+        attrs: { textContent: `Click 'Save' to save note.` }
+    }));
+
+    noteInputSet.addChild(getButtonTemplate(2, 'translnoteinput-savebtn', 'Save Note', (e) => {
+        document.getElementById('translnoteinput-hint').textContent = 'Note saved!';
+
+        let _npair = {
+            id: (new Date).getTime(),
+            title: document.getElementById('translnoteinput-title').value,
+            note: document.getElementById('translnoteinput-body').value
+        }
+
+        Browser.storage.local.get(['srclang', 'tarlang', 'notes'], (result) => {
+            let _notes = result.notes;
+            
+            _npair.origins = {
+                srclang: result.srclang,
+                tarlang: result.tarlang,
+                translations
+            }
+            _notes.push(_npair);
+
+            Browser.storage.local.set({ notes: _notes }, (result2) => {
+                console.log('Note', _npair);
+            });
+        });
+    }));
+
+    return noteInputSet;
 }
 
 
@@ -191,10 +357,10 @@ console.log('ContentScript loaded');
     let _existMenu = document.getElementById('translprime-translmenu');
     if(_existMenu) _existMenu.remove();
 
-    // 1. Get selection info.
+    // 1.1 Get selection info.
     let _winSel = getWindowSelection();
 
-    // 2. Create overall translation menu
+    // 1.2 Create overall translation menu
     let _overallMenu = new TranslMenuElement({
         tier: 0,
         type: 'div',
@@ -208,6 +374,7 @@ console.log('ContentScript loaded');
             // Menu size
             minWidth: '100px',
             minHeight: '100px',
+            maxWidth: '500px',
             // Menu style
             borderRadius: '10px',
             boxShadow: '5px 10px 10px #AAAAAA',
@@ -218,19 +385,18 @@ console.log('ContentScript loaded');
         }
     });
 
-    // 3. Create translation entries
-    message._translations.forEach((_transl, index) => {
-        let _translEntry = createMenuEntry(index, _transl);
+    // 2.1 Create translation entries
+    message._translations.forEach((_transl, index) => _overallMenu.addChild(createMenuEntry(index, _transl)));
 
-        _overallMenu.addChild(_translEntry);
-    });
+    // 2.2 Create note display
 
-    _overallMenu.addChild(new TranslMenuElement({ 
-        tier: 1, 
-        type: 'hr',
-        id: 'translprime-hr',
-        style: { margin: '0 5px 20px 5px' } 
-    }));
+    _overallMenu.addChild(getHrTemplate(1, 'translprime-hr1'));
+
+    // 3.1 Create button set
+    _overallMenu.addChild(createMenuButtons());
+
+    // 3.2 Create 'invisible' note input set
+    _overallMenu.addChild(createMenuNoteInput(message._translations));
 
     // Render
     document.body.appendChild(_overallMenu.HTMLElement);

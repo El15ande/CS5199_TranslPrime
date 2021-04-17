@@ -578,7 +578,7 @@ var paraphraseCallback = function(tokeniser, responses, sources=[]) {
     }
     
     // 3. Set/reset S-Lang & T-Lang to 'auto' (source) and 'en' (target) in Browser.storage.local
-    Browser.storage.local.set({ srclang: 'auto', tarlang: 'en' });
+    Browser.storage.local.set({ srclang: 'auto', tarlang: 'en', notes: [] });
  });
 
 // On registered item clicked
