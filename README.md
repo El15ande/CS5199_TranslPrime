@@ -17,12 +17,12 @@
 - `srclang: string`: language of source text (S-Lang)
 - `tarlang: string`: language of target translation (T-Lang)
 - `notes: Note[]`: array of notes
-  - `Note.id: Date`: time of storage
-  - `Note.origins.srclang: string`: S-Lang
-  - `Note.origins.tarlang: string`: T-Lang
-  - `Note.origins.translations: Translation[]`: translation context
-  - `Note.title: string`: note pair title
-  - `Note.note: string`: note pair values
+  - `Note.id: Date`: time of note storage
+  - `Note.cat: string`: note category
+  - `Note.note: string`: note taken
+  - `Note.lang: string`: T-Lang when note is taken
+  - `Note.keys: string[]`: translation context
+- `notecats: string[]`: array of note categories
 
 ### API object configurations
 
@@ -71,6 +71,8 @@ If user changes bilingual/paraphrase API to customised translation API which may
 
     <hr>
 
+    <div id="translprime-notedisplay" tier="1"></div>
+
     <hr>
 
     <div id="translprime-buttons" tier="1">
@@ -79,7 +81,10 @@ If user changes bilingual/paraphrase API to customised translation API which may
     </div>
 
     <div id="translprime-noteinput" tier="1">
-      <input id="translnoteinput-title" tier="2">
+      <select id="translnoteinput-category" tier="2">
+        <option value="Default">Default</option>
+        <!-- Other customised options -->
+      </select>
       <textarea id="translnoteinput-body" tier="2">
       <span id="translnoteinput-hint" tier="2">...</span>
       <button type="button" id="translnoteinput-savebtn" tier="2">Save</button>

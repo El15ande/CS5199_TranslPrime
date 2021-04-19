@@ -578,15 +578,20 @@ var paraphraseCallback = function(tokeniser, responses, sources=[]) {
     }
     
     // 3. Set/reset S-Lang & T-Lang to 'auto' (source) and 'en' (target) in Browser.storage.local
-    Browser.storage.local.set({ srclang: 'auto', tarlang: 'en', notes: [] });
+    Browser.storage.local.set({ 
+        srclang: 'auto', 
+        tarlang: 'en', 
+        notes: [], 
+        notecats: ['Default'] 
+    });
  });
 
 // On registered item clicked
-Browser.contextMenus.onClicked.addListener(async (info) => {
+Browser.contextMenus.onClicked.addListener((info) => {
     let _selText = info.selectionText;
 
     if(_selText) {
-        Browser.storage.local.get(['srclang', 'tarlang'], async (result) => {
+        Browser.storage.local.get(['srclang', 'tarlang'], (result) => {
             // 1. Register selected text in tokeniser
             let _tokeniser = new Tokeniser(_selText, result.srclang, result.tarlang);
         
@@ -596,7 +601,7 @@ Browser.contextMenus.onClicked.addListener(async (info) => {
                 : makeParaphraseURLs(_tokeniser);
             
             // 3. Fetch all URLs and pass result to ContentScript
-            await fetchAll(_urls, (res) => _tokeniser.isBilingual ? bilingualCallback(_tokeniser, res) : paraphraseCallback(_tokeniser, res));
+            fetchAll(_urls, (res) => _tokeniser.isBilingual ? bilingualCallback(_tokeniser, res) : paraphraseCallback(_tokeniser, res));
         });
     }
 });
