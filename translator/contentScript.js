@@ -116,6 +116,11 @@ var getWindowSelection = function() {
     return selection;
 }
 
+/**
+ * Display notes in translation menu
+ * @param {string[]} keys       Translation word(s) 
+ * @param {Note | Note[]} note  Notes 
+ */
 var displayNote = function(keys, note) {
     console.log(keys, note);
 
@@ -252,6 +257,7 @@ var getButtonTemplate = function(tier, id, textContent, onclick) {
             maxWidth: '100px',
             backgroundColor: '#FFFFFF',
             fontSize: '15px',
+            fontWeight: 'normal',
             color: '#808080'
         },
         attrs: { 
@@ -381,7 +387,7 @@ var createMenuEntry = function(index, translation) {
  * @returns {TranslMenuElement}     TranslMenuElement for the button set in tool area
  */
 var createMenuButtons = function() {
-    let buttonSet = getDivTemplate(1, 'translprime-buttons', { 
+    let buttonSet = getDivTemplate(1, 'translprime-buttons', {
         margin: '0 5px',
         display: 'flex',
         'justify-content': 'space-around'

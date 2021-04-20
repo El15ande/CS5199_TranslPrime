@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" 
+        rel="stylesheet" 
+        integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" 
+        crossorigin="anonymous"
+    >
+    <title>TranslPrime Global Setting</title>
+</head>
+<body>
+    <div class="row">
+        <div class="card col-md-4">
+            <div class="card-header">Translation Module</div>
+            <div class="card-body">
+                <h5 class="card-title">Change Source Language</h5>
+                <p class="card-text">Change the language of the original text in the webpage.</p>
+                <div class="form-group">
+                    <select class="form-control" id="src-sel"></select>
+                </div>            
+            </div>
+        </div>
+
+        <div class="card col-md-4">
+            <div class="card-header">Translation Module</div>
+            <div class="card-body">
+                <h5 class="card-title">Change Target Language</h5>
+                <p class="card-text">Change the language of the translations in the translation menu.</p>
+                <div class="form-group">
+                    <select class="form-control" id="tar-sel"></select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="card col-md-4">
+            <div class="card-header">Note Module</div>
+            <div class="card-body">
+                <h5 class="card-title">Edit Notes</h5>
+                <p class="card-text">Edit past notes.</p>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        body {
+            font-family: "Segoe UI Web (West European)","Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,"Helvetica Neue",sans-serif;
+        }
+
+        .row, .card {
+            margin: 10px;
+            padding: 0;
+        }
+    </style>
+
+    <script src="setting.js"></script>
+    <script src="popup.js"></script>
+</body>

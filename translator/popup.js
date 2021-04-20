@@ -75,3 +75,10 @@ document.getElementById('tar-sel').onchange = function(e) {
         console.log(`New T-Lang: ${_newLang.tarlang}`);
     });
 }
+
+// On global setting opened
+if(document.getElementById('gset-btn')) {
+    document.getElementById('gset-btn').onclick = function(e) {
+        Browser.runtime.openOptionsPage();
+    }
+}

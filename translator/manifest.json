@@ -19,6 +19,8 @@
         }
     ],
 
+    "options_page": "setting.html",
+
     "permissions": [
         "tabs",
         "storage",
