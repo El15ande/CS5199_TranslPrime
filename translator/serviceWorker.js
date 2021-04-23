@@ -530,11 +530,16 @@ var paraphraseCallback = function(tokeniser, responses, sources=[]) {
                     _translation.source = sources[index] || sources[0];
 
                     response.forEach((res) => {
-                        _translation.paraphrases.push({
-                            prototype: res.word,
-                            pos: res.meanings[0].partOfSpeech,
-                            definitions: res.meanings[0].definitions.map((def) => def.definition).slice(0, PARAPHRASE_AMOUNT)
-                        });
+                        if(res.meanings.length > 0) {
+                            res.meanings.forEach((r) => {
+                                _translation.paraphrases.push({
+                                    prototype: res.word,
+                                    pos: r.partOfSpeech,
+                                    definitions: r.definitions.map((def) => def.definition).slice(0, PARAPHRASE_AMOUNT)
+                                });
+                            });
+                        }
+                        
                     });
                 } else {
                     _translation.target = tokeniser.getToken(index);
@@ -562,6 +567,7 @@ var paraphraseCallback = function(tokeniser, responses, sources=[]) {
 
 
 /**
+ * Global process
  * Event registration
  */
 // On extension installed

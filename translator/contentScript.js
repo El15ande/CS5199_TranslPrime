@@ -81,6 +81,9 @@ var Browser = chrome || browser; // TODO Check other browser adaptivity
 // Previous translation menu position
 var prevPosition = { x: 0, y: 0 };
 
+// Editing note cache
+var editedNote;
+
 
 
 /**
@@ -122,13 +125,11 @@ var getWindowSelection = function() {
  * @param {Note | Note[]} note  Notes 
  */
 var displayNote = function(keys, note) {
-    console.log(keys, note);
-
     let _getDate = function(id) {
         let _date = new Date(id);
 
         let _year = _date.getFullYear();
-        let _month = _date.getMonth();
+        let _month = _date.getMonth() + 1;
         let _day = _date.getDate();
 
         return [
@@ -144,25 +145,64 @@ var displayNote = function(keys, note) {
             type: 'span',
             id: 'notedisplay-null',
             style: { fontSize: '15px', fontWeight: 'bold' },
-            attrs: { textContent: 'Note: no note for this translation yet!' }
+            attrs: { textContent: 'No note for this translation yet.' }
         });
     }
 
     let _createDisplayEntry = function(note, index) {
-        let entryDiv = getDivTemplate(3, `groupnote-${index}`);
+        let entryDiv = getDivTemplate(3, `notedisplay-group${index}`);
 
         entryDiv.addChild(new TranslMenuElement({
             tier: 4,
             type: 'span',
-            id: index === 0 ? `directnote-head` : `groupnote${index}-head`,
+            id: `note${index}-head`,
             style: { fontSize: '15px', fontWeight: 'bold' },
             attrs: { textContent: `Note @ ${_getDate(note.id)}` }
+        }));
+
+        entryDiv.addChild(getButtonTemplate(4, `note${index}-editbtn`, 'Edit', (e) => {
+            let _this = document.getElementById(`note${index}-editbtn`);
+
+            if(_this.textContent === 'Edit') {
+                _this.textContent = 'Editing';
+
+                Browser.storage.local.get(['notes'], (result) => {
+                    let _note = result.notes.filter((n) => n.id === note.id)[0];
+    
+                    editedNote = { index, note: _note };
+                    
+                    document.getElementById('translprime-noteinput').style.display = 'grid';
+                    document.getElementById('translbutton-notebtn').textContent = 'Close Note';
+                    
+                    document.getElementById('translnoteinput-category').value = editedNote.note.cat;
+                    document.getElementById('translnoteinput-body').value = editedNote.note.note;
+                });
+            } else if(_this.textContent === 'Editing') {
+                _this.textContent = 'Edit';
+
+                editedNote = null;
+                document.getElementById('translnoteinput-category').value = 'Default';
+                document.getElementById('translnoteinput-body').value = '';
+            }
+
+            
+        }));
+
+        entryDiv.addChild(getButtonTemplate(4, `note${index}-delbtn`, 'Delete', (e) => {
+            Browser.storage.local.get(['notes'], (result) => {
+                let _otherNotes = result.notes.filter((n) => n.id !== note.id);
+                
+                Browser.storage.local.set(
+                    { notes: _otherNotes }, 
+                    () => document.getElementById(`notedisplay-group${index}`).remove()
+                );
+            });
         }));
 
         let noteLines = note.note.split('\n');
         noteLines.forEach((nl, nlindex) => {
             entryDiv.addChild(getDivTemplate(4, 
-                (index === 0 ? `directnote-noteline${nlindex+1}`: `groupnote${index}-noteline${nlindex+1}`), 
+                `note${index}-line${nlindex+1}`, 
                 { fontSize: '12px' }, 
                 { textContent: nl }
             ));
@@ -171,32 +211,25 @@ var displayNote = function(keys, note) {
         return entryDiv;
     }
 
-    let noteElement = _createDisplayNull();
+    let noteElements = [];
 
-    if(Array.isArray(note)) {
-        // Search note from notes
-        if(note.length > 0) {
-            let _matchedNotes = note.filter((n) => keys.some((r) => n.keys.includes(r)));
+    if(Array.isArray(note) && note.length > 0) {
+        let _matchedNotes = note.filter((n) => keys.some((r) => n.keys.includes(r)));
 
-            if(_matchedNotes.length > 0) {
-                noteElement = getDivTemplate(2, 'notedisplay-groupnote');
+        _matchedNotes.forEach((mnote, index) => noteElements.push(_createDisplayEntry(mnote, index+1)));
+    } else if (!(note instanceof Array)) {
+        let _len = document.getElementById('translprime-notedisplay').childNodes.length + 1;
+        if(document.getElementById('notedisplay-null')) _len--;
 
-                _matchedNotes.forEach((mnote, index) => {
-                    noteElement.addChild(_createDisplayEntry(mnote, index+1));
-                });
-            }
-        }
-    } else {
-        // Direct render
-        if(document.getElementById('notedisplay-null')) {
-            document.getElementById('notedisplay-null').remove();
-        }
-        
-        noteElement = getDivTemplate(2, 'notedisplay-directnote');
-        noteElement.addChild(_createDisplayEntry(note, 0));
+        noteElements.push(_createDisplayEntry(note, _len));
     }
 
-    document.getElementById('translprime-notedisplay').appendChild(noteElement.HTMLElement);
+    if(noteElements.length > 0) {
+        if(document.getElementById('notedisplay-null')) document.getElementById('notedisplay-null').remove();
+        noteElements.forEach((ne) => document.getElementById('translprime-notedisplay').appendChild(ne.HTMLElement));
+    } else {
+        document.getElementById('translprime-notedisplay').appendChild(_createDisplayNull().HTMLElement);
+    }
 }
 
 
@@ -231,6 +264,7 @@ var getHrTemplate = function(tier, id) {
         id,
         type: 'hr',
         style: { 
+            height: '0',
             margin: '0 5px 10px 5px',
             border: '1px solid #FFFFFF' 
         } 
@@ -284,7 +318,8 @@ var getSelectTemplate = function(tier, id, options) {
             margin: '0 10px 10px 10px',
             padding: '0',
             border: '0',
-            maxWidth: '480px'
+            maxWidth: '480px',
+            fontSize: '15px'
         }
     });
 
@@ -403,6 +438,7 @@ var createMenuButtons = function() {
         } else if(_this.textContent === 'Close Note') {
             document.getElementById('translprime-noteinput').style.display = 'none';
             _this.textContent = 'Add Note';
+            editedNote = null;
         }
     }));
 
@@ -423,7 +459,9 @@ var createMenuButtons = function() {
 var createMenuNoteInput = function(result, translations) {
     let noteInputSet = getDivTemplate(1, 'translprime-noteinput', { 
         display: 'none',
-        position: 'center'
+        position: 'center',
+        fontFamily: `'Segoe UI Web (West European)', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif`,
+        fontSize: '15px'
     });
 
     // 1. Add <select> categories
@@ -431,7 +469,7 @@ var createMenuNoteInput = function(result, translations) {
         tier: 2,
         id: 'noteinput-taglabel',
         type: 'label',
-        style: { marginLeft: '10px', fontSize: '15px' },
+        style: { marginLeft: '10px' },
         attrs: {
             for: 'translnoteinput-category',
             textContent: 'Note Tag'
@@ -463,33 +501,50 @@ var createMenuNoteInput = function(result, translations) {
 
     // 4. Add save button
     noteInputSet.addChild(getButtonTemplate(2, 'translnoteinput-savebtn', 'Save', (e) => {
+        let _npair;
+        let _notes = result.notes;
+
         document.getElementById('translnoteinput-hint').textContent = 'Note saved!';
 
-        let _npair = {
-            id: (new Date).getTime(),
-            cat: document.getElementById('translnoteinput-category').value,
-            note: document.getElementById('translnoteinput-body').value,
-            lang: result.tarlang,
-            keys: translations.map((transl) => transl.target)
-        };
+        if(editedNote) {
+            let _enote = editedNote.note;
+            let _eid = _enote.id;
+
+            _npair = Object.assign(_enote, {
+                id: (new Date).getTime(),
+                cat: document.getElementById('translnoteinput-category').value,
+                note: document.getElementById('translnoteinput-body').value,
+            });
+            _notes = _notes.filter((n) => n.id !== _eid);
+            
+            document.getElementById(`notedisplay-group${editedNote.index}`).remove();
+            editedNote = null;
+        } else {
+            _npair = {
+                id: (new Date).getTime(),
+                cat: document.getElementById('translnoteinput-category').value,
+                note: document.getElementById('translnoteinput-body').value,
+                lang: result.tarlang,
+                keys: translations.map((transl) => transl.target)
+            };
+        }
         console.log('Note', _npair);
 
         // Display note
         displayNote(_npair.keys, _npair);
 
         // Store notes
-        // TODO Better way to store _npair into storage
-        let _notes = result.notes;
         _notes.push(_npair);
-        Browser.storage.local.set({ notes: _notes });
+        Browser.storage.local.set({ notes: _notes }, () => document.getElementById('translnoteinput-body').value='');
     }));
 
     return noteInputSet;
 }
 
 
-// ContentScript global process
-console.log('ContentScript loaded');
+
+// Global process
+console.log('TranslPrime ContentScript loaded');
 
 /**
  * Event registration
@@ -524,7 +579,8 @@ Browser.runtime.onMessage.addListener((message) => {
             backgroundColor: '#3178C6',
             // Font
             color: '#FFFFFF',
-            fontFamily: `'Segoe UI Web (West European)', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif`
+            fontFamily: `'Segoe UI Web (West European)', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif`,
+            lineHeight: 'normal'
         });
 
         // 2. Create translation entries

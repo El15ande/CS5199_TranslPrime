@@ -72,7 +72,21 @@ If user changes bilingual/paraphrase API to customised translation API which may
     <hr>
 
     <div id="translprime-notedisplay" tier="1"></div>
+      <div id="notedisplay-groups">
+        <div id="notedisplay-group1">
+          <span id="note1-head">Note @ sometime</span>
+          <button id="note1-editbtn"></button>
+          <button id="note1-delbtn"></button>
+          <div id="note1-line1">Line1</div>
+          <div id="note1-line2">Line2</div>
+          <!-- For m lines in the note, id goes from noten-line1 to noten-linem -->
+        </div>
 
+        <!-- For n notes, id goes from notedisplay-group1 to notedisplay-groupn -->
+      </div>
+
+      <!-- If no note is found -->
+      <div id="notedisplay-null">No note for this translation yet</div>
     <hr>
 
     <div id="translprime-buttons" tier="1">

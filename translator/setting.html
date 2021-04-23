@@ -34,12 +34,32 @@
         </div>
     </div>
 
+    <hr>
+
     <div class="row">
         <div class="card col-md-4">
             <div class="card-header">Note Module</div>
             <div class="card-body">
-                <h5 class="card-title">Edit Notes</h5>
-                <p class="card-text">Edit past notes.</p>
+                <h5 class="card-title">Customise Note Categories</h5>
+                <p class="card-text">Add or delete note categories.</p>
+
+                <div class="input-group" id="notecat-add">
+                    <input type="text" class="form-control" id="notecatadd-input" placeholder="Category name" aria-describedby="notecatadd-btn">
+                    <button type="button" class="btn btn-outline-primary" id="notecatadd-btn">Add category</button>
+                </div>
+
+                <div class="input-group" id="notecat-display">
+                    <select class="form-select" id="notecatdisplay-sel"></select>
+                    <button type="button" class="btn btn-outline-danger" id="notecatdisplay-btn">Remove category</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card col-md-4">
+            <div class="card-header">Note Module</div>
+            <div class="card-body">
+                <h5 class="card-title">Customise Note Categories</h5>
+                <p class="card-text">Add or delete note categories.</p>
             </div>
         </div>
     </div>
@@ -52,6 +72,14 @@
         .row, .card {
             margin: 10px;
             padding: 0;
+        }
+
+        .input-group {
+            margin: 10px 0;
+        }
+
+        hr {
+            margin: 10px 20px;
         }
     </style>
 

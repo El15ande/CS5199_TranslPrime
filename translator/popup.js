@@ -13,10 +13,13 @@ var Browser = chrome || browser; // TODO Check other browser adaptivity
 
 
 /**
+ * Global process
  * Event registration
  */
 // On window loaded
 window.onload = function(e) {
+    console.log('TranslPrime Popup Script loaded');
+
     // Create <option> element
     let _createOption = function(lang) {
         let _opt = document.createElement('option');
@@ -46,15 +49,11 @@ window.onload = function(e) {
 
     // 3. Retrieve S-Lang & T-Lang from Browser.storage.local
     Browser.storage.local.get(['srclang', 'tarlang'], (result) => {
-        if(result.srclang) {
-            _srcSel.value = result.srclang;
-            console.log(`Current S-Lang: ${result.srclang}`);
-        }
-
-        if(result.tarlang) {
-            _tarSel.value = result.tarlang;
-            console.log(`Current T-Lang: ${result.tarlang}`);
-        }
+        _srcSel.value = result.srclang;
+        _tarSel.value = result.tarlang;
+        
+        console.log(`Current S-Lang: ${result.srclang}`);
+        console.log(`Current T-Lang: ${result.tarlang}`);
     });
 }
 
