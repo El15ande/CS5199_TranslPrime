@@ -22,11 +22,11 @@ window.onload = function(e) {
 
     // Create <option> element
     let _createOption = function(lang) {
-        let _opt = document.createElement('option');
-        _opt.value = lang;
-        _opt.innerHTML = LANGUAGE_CODES[lang];
+        let opt = document.createElement('option');
+        opt.value = lang;
+        opt.text = LANGUAGE_CODES[lang];
 
-        return _opt;
+        return opt;
     }
 
     let _srcSel = document.getElementById('src-sel');
@@ -35,7 +35,7 @@ window.onload = function(e) {
     // 1. Append S-Lang menu w/ auto-recognition option
     let _autoOpt = document.createElement('option');
     _autoOpt.value = 'auto';
-    _autoOpt.innerHTML = 'Auto Recognition'
+    _autoOpt.text = 'Auto Recognition'
     _srcSel.appendChild(_autoOpt);
 
     // 2. Append S-Lang & T-Lang menu w/ language options

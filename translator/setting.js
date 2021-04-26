@@ -10,16 +10,77 @@ var Notes, NoteCats;
  * Append note categories to #notecatdisplay-sel
  */
 var appendNoteCats = function() {
-    let _sel = document.getElementById('notecatdisplay-sel');
+    let _createOption = function(cat) {
+        let opt = document.createElement('option');
+        opt.value = cat;
+        opt.text = cat;
 
-    _sel.options.length = 0;
+        return opt;
+    }
+
+    let _catDisplaySel = document.getElementById('notecatdisplay-sel');
+    let _manageSel = document.getElementById('notemanage-sel');
+
+    _catDisplaySel.options.length = 0;
+    _manageSel.options.length = 0;
 
     NoteCats.forEach((cat) => {
-        let _catOpt = document.createElement('option');
-        _catOpt.value = cat;
-        _catOpt.text = cat;
+        let _catOpt = _createOption(cat);
+        let _manOpt = _createOption(cat);
 
-        _sel.appendChild(_catOpt);
+        _catDisplaySel.appendChild(_catOpt);
+        _manageSel.appendChild(_manOpt);
+    });
+}
+
+var appendNotes = function(notes) {
+    let _getNoteTitle = function(date, keys) {
+        // Date
+        let _date = new Date(date);
+        let _year = _date.getFullYear();
+        let _month = _date.getMonth() + 1;
+        let _day = _date.getDate();
+
+        let _dateTitle = [
+            _year,
+            (_month>9 ? '' : '0') + _month,
+            (_day>9 ? '' : '0') + _day
+        ].join('-');
+
+        let _noteTitle = keys.join(',');
+
+        return `[${_dateTitle}] [${_noteTitle}]`;
+    }
+
+    let _notelist = document.getElementById('notevis-list');
+    while(_notelist.firstChild) _notelist.firstChild.remove();
+
+    notes.forEach((note) => {
+        // 1. Overall div
+        let _noteItem = document.createElement('div');
+        _noteItem.classList.add('list-group-item');
+        
+        // 2. Add card title
+        let _niTitle = document.createElement('h5');
+        _niTitle.textContent = _getNoteTitle(note.id, note.keys);
+        _niTitle.classList.add('mb-1');
+        _noteItem.appendChild(_niTitle);
+
+        // 3. Add card note
+        let _noteLines = note.note.split('\n');
+        let _niNote = document.createElement('div');
+        _niNote.classList.add('mb-1');
+        _noteLines.forEach((nl) => {
+            let _line = document.createElement('p');
+            _line.style.margin = '0px';
+            _line.textContent = nl;
+            _niNote.appendChild(_line);
+        });
+        _noteItem.appendChild(_niNote);
+
+        // TODO Add note-editing & note-deleting
+
+        _notelist.appendChild(_noteItem);
     });
 }
 
@@ -68,4 +129,32 @@ document.getElementById('notecatdisplay-btn').onclick = function(e) {
 
         alert(`${_cat} has been removed.`);
     }
+}
+
+// On accessing notes
+document.getElementById('notemanage-btn').onclick = function(e) {
+    let _cat = document.getElementById('notemanage-sel').value;
+
+    Browser.storage.local.get(['notes'], (result) => {
+        document.getElementById('notevis-title').textContent = `Note (category: ${_cat})`;
+
+        appendNotes(result.notes.filter((n) => n.cat === _cat));
+    })
+}
+
+// On searching notes
+document.getElementById('notesearch-btn').onclick = function(e) {
+    let _keyword = document.getElementById('notesearch-input').value.toLowerCase();
+    let _matchedNotes = [];
+
+    Browser.storage.local.get(['notes'], (result) => {
+        document.getElementById('notevis-title').textContent = `Note (keyword: ${_keyword})`;
+
+        result.notes.forEach((note) => {
+            let _lowerKeys = note.keys.map((key) => key.toLowerCase());
+            if(_lowerKeys.includes(_keyword) || note.note.toLowerCase().includes(_keyword)) _matchedNotes.push(note);
+        });
+
+        appendNotes(_matchedNotes);
+    });
 }

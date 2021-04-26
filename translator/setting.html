@@ -40,17 +40,19 @@
         <div class="card col-md-4">
             <div class="card-header">Note Module</div>
             <div class="card-body">
-                <h5 class="card-title">Customise Note Categories</h5>
-                <p class="card-text">Add or delete note categories.</p>
+                <h5 class="card-title">Manage notes</h5>
+                <p class="card-text">Visualise and manage existing notes</p>
 
-                <div class="input-group" id="notecat-add">
-                    <input type="text" class="form-control" id="notecatadd-input" placeholder="Category name" aria-describedby="notecatadd-btn">
-                    <button type="button" class="btn btn-outline-primary" id="notecatadd-btn">Add category</button>
+                <label for="notemanage-sel">Search by category</label>
+                <div class="input-group" id="notevis-manage">
+                    <select class="form-select" id="notemanage-sel"></select>
+                    <button type="button" class="btn btn-outline-primary" id="notemanage-btn">Get note</button>
                 </div>
 
-                <div class="input-group" id="notecat-display">
-                    <select class="form-select" id="notecatdisplay-sel"></select>
-                    <button type="button" class="btn btn-outline-danger" id="notecatdisplay-btn">Remove category</button>
+                <label for="notesearch-input">Search by keywords</label>
+                <div class="input-group" id="notevis-search">
+                    <input type="text" class="form-control" id="notesearch-input" placeholder="Input note title or content keywords" aria-describedby="notesearch-btn">
+                    <button type="button" class="btn btn-outline-secondary" id="notesearch-btn">Search note</button>
                 </div>
             </div>
         </div>
@@ -60,7 +62,40 @@
             <div class="card-body">
                 <h5 class="card-title">Customise Note Categories</h5>
                 <p class="card-text">Add or delete note categories.</p>
+
+                <label for="notecatadd-input">Add new note categories</label>
+                <div class="input-group" id="notecat-add">
+                    <input type="text" class="form-control" id="notecatadd-input" placeholder="Input new note category name" aria-describedby="notecatadd-btn">
+                    <button type="button" class="btn btn-outline-primary" id="notecatadd-btn">Add category</button>
+                </div>
+
+                <label for="notecatdisplay-sel">Remove note categories</label>
+                <div class="input-group" id="notecat-display">
+                    <select class="form-select" id="notecatdisplay-sel"></select>
+                    <button type="button" class="btn btn-outline-danger" id="notecatdisplay-btn">Remove category</button>
+                </div>
             </div>
+        </div>
+    </div>
+
+    <hr>
+
+    <div class="row">
+        <div class="card col-md-4">
+            <div class="card-header">User Assistance</div>
+            <div class="card-body">
+                <h5 class="card-title">User Guidance</h5>
+                <p class="card-text">Get help on how to use TranslPrime.</p>
+            </div>
+        </div>
+    </div>
+        
+    <hr>
+
+    <div id="note-visualisation">
+        <h4 id="notevis-title">Notes</h4>
+        <div id="notevis-list" class="list-group">
+            Search existing notes in 'Manage Notes' section.
         </div>
     </div>
     
@@ -78,8 +113,12 @@
             margin: 10px 0;
         }
 
-        hr {
+        hr, #note-visualisation {
             margin: 10px 20px;
+        }
+
+        label {
+            font-style: oblique;
         }
     </style>
 
