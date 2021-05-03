@@ -1,144 +1,306 @@
-// Default B-API
+// Default T-API
 const BAIDU_DOMAIN = 'http://fanyi-api.baidu.com/api/trans/vip/translate';
 const BAIDU_APPID = '20210225000706883';
 const BAIDU_KEY = 'qQZh8SEkTNffxbK3vevy';
 // Default P-API
-const GDICT_DOMAIN = 'https://api.dictionaryapi.dev/api/v2/entries';
+const FREEDICT_DOMAIN = 'https://api.dictionaryapi.dev/api/v2/entries';
+// Microsoft API
+const MS_TRANSLATOR_DOMAIN = 'https://api.cognitive.microsofttranslator.com/translate?api-version=3.0';
+const MS_TRANSLATOR_KEY = 'd566277440eb464c9b5e6f9445823858';
+const MS_TRANSLATOR_REGION = 'westeurope';
+
 // Number of paraphrase strings contained
 const PARAPHRASE_AMOUNT = 3;
+
 // Tokenisation Regex
 const TOKEN_REGEX = /[^ A-zÀ-Ÿ-\u4e00-\u9fa5]/g;
-
-
-
-/**
- * Translation API 'plug'
- * @private {boolean} #type     Type of translation API (TRUE: Bilingual API) (FALSE: Paraphrase API)
- * @private {string} #domain    API HTTP(S) domain
- * @private {object} #keys      API keys for different service requirements
- * 
- * @public {string} domain
- * @public {function} getKey
- */
- class TranslationAPI {
-    #type = false;
-    #domain = '';
-    #keys = {};
-
-    constructor(type, domain, keys) {
-        this.#type = type;
-        this.#domain = domain;
-        this.#keys = Object.assign(keys);
-    }
-
-    get domain() {
-        return this.#domain;
-    }
-
-    /**
-     * Get key value from specified name
-     * @param {string} kname    Key name
-     * @returns {string}        Specified key value
-     */
-    getKey(kname) {
-        return this.#keys.hasOwnProperty(kname)
-            ? this.#keys[kname]
-            : null;
-    }
-}
-
-/**
- * Text tokeniser
- * @private {string} #text          Original text
- * @private {string} #srclang       Language code snapshot of the source text
- * @private {string} #tarlang       Language code snapshot of the target translation
- * @private {boolean} #isBilingual  Flag of bilingual translation (TRUE: bilingual) (FALSE: paraphrase)
- * @private {string[]} #tokens      Separated tokens
- * 
- * @public {boolean} isBilingual
- * @public {string[]} tokens
- * @public {object} APIFormat
- * @public {function} getToken
- */
- class Tokeniser {
-    #text = '';
-    #srclang = '';
-    #tarlang = '';
-    #isBilingual = false;
-    #tokens = [];
-
-    constructor(text, srclang, tarlang) {
-        this.#text = text;
-        // Snapshots
-        this.#srclang = srclang;
-        this.#tarlang = tarlang;
-
-        // isBilingual flag
-        this.#isBilingual = this.#srclang === 'auto' || this.#srclang !== this.#tarlang;
-
-        // Tokenisation
-        // Space-separated languages will be tokenised by splitting
-        let _text = text.includes('\n') ? text.replace(/\n/g, ' ') : text;
-        let _tokens = _text.replace(TOKEN_REGEX, '').split(' ');
-        // Remove duplicated tokens
-        this.#tokens = Array.from(new Set(_tokens));            
-    }
-
-    get isBilingual() {
-        return this.#isBilingual;
-    }
-
-    get tokens() {
-        return this.#tokens;
-    }
-
-    /**
-     * @returns {object}    Token object (see Readme for detail)
-     */
-    get APIFormat() {
-        let tokenObj = {
-            // S-Lang is auto || S-Lang not equal to T-Lang
-            isBilingual: this.#isBilingual,
-            tokens: [...this.#tokens]
-        };
-
-        if(tokenObj.isBilingual) {
-            tokenObj.from = this.#srclang;
-            tokenObj.to = this.#tarlang;
-        } else {
-            tokenObj.lang = this.#tarlang;
-        }
-
-        return tokenObj;
-    }
-
-    /**
-     * Get token from specified position
-     * @param {number} index    Token position 
-     * @returns {string}        Token string
-     */
-    getToken(index) {
-        return (index > -1 && index < this.#tokens.length)
-            ? this.#tokens[index]
-            : '';
-    }
-}
 
 
 
 // Global browser
 var Browser = chrome || browser; // TODO Check other browser adaptivity
 
-// Browser.tabs.query info.
-var tabQueryInfo = { active: true, currentWindow: true };
 
-// B-API 'socket'
-var bilingualAPI = new TranslationAPI(true, BAIDU_DOMAIN, { appid: BAIDU_APPID, key: BAIDU_KEY });
+
+/**
+ * Text tokeniser
+ * @private {string} #text          Original text
+ * @private {string} #srclang       Language code snapshot of the source text
+ * @private {string} #tarlang       Language code snapshot of the target translation
+ * @private {string[]} #tokens      Separated tokens
+ * 
+ * @getter {object} APIFormat
+ */
+ class Tokeniser {
+    #text = '';
+    #srclang = ''; 
+    #tarlang = '';
+    #tokens = [];
+
+    constructor(text, srclang, tarlang) {
+        // Selected text backup
+        this.#text = text.includes('\n') ? text.replace(/\n/g, ' ') : text;
+        // S-Lang & T-Lang snapshots
+        this.#srclang = srclang;
+        this.#tarlang = tarlang;
+
+        // Tokenisation
+        // Space-separated languages will be tokenised by splitting
+        let _tokens = this.#text.replace(TOKEN_REGEX, '').split(' ').map((_t) => _t.toLowerCase());
+        // Remove duplicated tokens
+        this.#tokens = Array.from(new Set(_tokens));
+    }
+
+    // See Readme for returned object detail
+    get APIFormat() {
+        return {
+            from: this.#srclang,
+            to: this.#tarlang,
+            tokens: this.#tokens,
+            text: this.#text
+        };
+    }
+}
+
+/**
+ * Translation API 'plug'
+ * @public {boolean} type           Type of translation API (TRUE: Translate API) (FALSE: Paraphrase API)
+ * @public {string} name            API name displayed on the setting page
+ * @public {string} domain          API HTTP(S) domain
+ * @private {object} #keys          API keys for different service requirements
+ * @private {function} #converter   API converter that takes Tokeniser & generates necessary data for fetch()
+ * @private {function} #handler     API callback handler that takes the API result & generates necessary data sending to ContentScript
+ * 
+ * @public {function} getKey
+ * @public {function} toFetchFormat
+ * @public {function} toCSFormat
+ */
+ class TranslationAPI {
+    type = false;
+    name = '';
+    domain = '';
+    #keys = {};
+    #converter = null;
+    #handler = null;
+
+    constructor(type, name, domain, keys, converter, handler) {
+        this.type = type;
+        this.name = name;
+        this.domain = domain;
+
+        this.#keys = Object.assign(keys);
+        this.#converter = converter;
+        this.#handler = handler;
+    }
+
+    /**
+     * Get a key from #keys
+     * @param {string} name     Key name 
+     * @returns {string}        Key value
+     */
+    getKey(name) {
+        return this.#keys.hasOwnProperty(name)
+            ? this.#keys[name]
+            : '';
+    }
+
+    /**
+     * Generate necessary data for fetch()
+     * @param {Tokeniser}           Tokeniser w/ token info.
+     * @returns {FetchFormat[]}     API info. object for fetch() (see Readme for returned object detail)
+     */
+    toFetchFormat(tokeniser) {
+        return this.#converter(this, tokeniser);
+    }
+
+    /**
+     * Generate necessary data sending to ContentScript
+     * @param {object} result           Data retrieved from API
+     * @param {Tokeniser} tokeniser     Original tokeniser
+     * @returns {Translation[]}         Translation info. object for ContentScript display (see Readme for returned object detail)
+     */
+    toCSFormat(result, tokeniser) {
+        return this.#handler(result, tokeniser);
+    }
+}
+
+
+
+// BAIDU translate API
+var BAIDUTranslateAPI = new TranslationAPI(
+    true, 
+    'Baidu Translate', 
+    BAIDU_DOMAIN, 
+    { appid: BAIDU_APPID, key: BAIDU_KEY }, 
+    (api, tokeniser) => {
+        // https://api.fanyi.baidu.com/doc/21
+        // console.log(api, tokeniser);
+
+        let _query = {
+            q: tokeniser.APIFormat.text,
+            from: tokeniser.APIFormat.from,
+            to: tokeniser.APIFormat.to,
+            salt: (new Date).getTime()
+        };
+
+        let _sign = MD5(api.getKey('appid') + _query.q + _query.salt + api.getKey('key'));
+
+        if(_query.from === 'fr') _query.from = 'fra';
+        if(_query.to === 'fr') _query.to = 'fra';
+
+        return [{
+            isGet: true,
+            url: encodeURI(`${api.domain}?q=${_query.q}&from=${_query.from}&to=${_query.to}&appid=${api.getKey('appid')}&salt=${_query.salt}&sign=${_sign}`)
+        }];
+    },
+    (result, tokeniser) => {
+        // https://api.fanyi.baidu.com/doc/21
+        // console.log(result, tokeniser);
+        
+        return {
+            langs: [result[0].from, result[0].to],
+            translate: {
+                source: result[0].trans_result[0].src,
+                target: result[0].trans_result[0].dst
+            }
+        };
+    }
+);
+
+// Microsoft Translator translate API
+var MSTranslatorAPI = new TranslationAPI(
+    true,
+    'Microsoft Translator V3.0',
+    MS_TRANSLATOR_DOMAIN,
+    {},
+    (api, tokeniser) => {
+        // https://docs.microsoft.com/en-us/azure/cognitive-services/translator/reference/v3-0-translate
+        // console.log(api, tokeniser);
+
+        let body = JSON.stringify([{ 'Text': tokeniser.APIFormat.text }]);
+        let headers = {
+            'Ocp-Apim-Subscription-Key': MS_TRANSLATOR_KEY,
+            'Ocp-Apim-Subscription-Region': MS_TRANSLATOR_REGION,
+            'Content-Type': 'application/json; charset=UTF-8'
+        }
+
+        return [{
+            isGet: false,
+            url: `${api.domain}&to=${tokeniser.APIFormat.to}`,
+            headers,
+            body
+        }];
+    },
+    (result, tokeniser) => {
+        // https://docs.microsoft.com/en-us/azure/cognitive-services/translator/reference/v3-0-translate
+        // console.log(result, tokeniser);
+
+        let _result = Array.isArray(result[0])
+            ? result[0][0]
+            : result[0];
+
+        return {
+            langs: [_result.detectedLanguage.language, _result.translations[0].to],
+            translate: {
+                source: tokeniser.APIFormat.text,
+                target: _result.translations[0].text
+            }
+        };
+    }
+);
+
+// Free Dictionary paraphrase API
+var FreeDictionaryAPI = new TranslationAPI(
+    false, 
+    'Free Dictionary', 
+    FREEDICT_DOMAIN, 
+    {},
+    (api, tokeniser) => {
+        // https://dictionaryapi.dev/
+        // console.log(api, tokeniser);
+
+        let _tTokenisers = tokeniser.APIFormat.tokens.map((token) => new Tokeniser(token, tokeniser.APIFormat.from, tokeniser.APIFormat.to));
+        let _tFetchFormats = _tTokenisers.map((t) => translateAPI.toFetchFormat(t)[0]);
+
+        return new Promise((res) => {
+            fetchAll(_tFetchFormats, (result) => {
+                let _tCSFormats = result.map((r) => { return translateAPI.toCSFormat(r, tokeniser); });
+                
+                res(_tCSFormats.map((tcsFormat) => {
+                    return {
+                        isGet: true,
+                        url: `${api.domain}/${tcsFormat.langs[1]}/${tcsFormat.translate.target}`
+                    };
+                }));
+            });
+        });
+    },
+    (result, tokeniser) => {
+        // https://dictionaryapi.dev/
+        console.log(result, tokeniser);
+
+        return {
+            langs: [tokeniser.APIFormat.to],
+            paraphrase: result.map((r1, i) => {
+                return {
+                    origin: tokeniser.APIFormat.tokens[i],
+                    targets: Array.isArray(r1)
+                        ? r1.map((r2) => {
+                            return {
+                                word: r2.word,
+                                meanings: Array.isArray(r2.meanings)
+                                    ? r2.meanings.map((r3) => {
+                                        return {
+                                            pos: r3.partOfSpeech,
+                                            definitions: Array.isArray(r3.definitions)
+                                                ? r3.definitions.map((definition) => definition.definition).slice(0, PARAPHRASE_AMOUNT)
+                                                : []
+                                        }
+                                    })
+                                    : []
+                            }
+                        })
+                        : []
+                }
+            })
+        }
+    }
+);
+
+// T-API 'socket'
+var translateAPI = MSTranslatorAPI;
 
 // P-API 'socket'
-var paraphraseAPI = new TranslationAPI(false, GDICT_DOMAIN, {});
+var paraphraseAPI = FreeDictionaryAPI;
 
 
+
+/**
+ * Print errors to console.error
+ * 
+ * Error codes:
+ *  0   Unsuccessful extension installation
+ *  1   Invalid selected text in translate/paraphrase
+ *  2   Invalid API call
+ * 
+ * @param {number} err      Error code
+ * @param {object} errObj   Additional error info.
+ */
+var printErrors = function(err, errObj) {
+    let errText = '';
+    
+    switch (err) {
+        case 0: errText = 'Unsuccessful installation'; break;
+        // Translate/paraphrase errors
+        case 1: errText = 'Invalid selected text'; break;
+        case 2: errText = 'Invalid HTTPRequest or API invocation'; break;
+        // Browser message exchange errors
+        case 3: errText = 'Active tab not found'; break;
+        default: break;
+    }
+
+    console.error(errText, errObj);
+}
 
 /**
  * Code adapted from https://api.fanyi.baidu.com/doc/21
@@ -383,231 +545,117 @@ var MD5 = function(text) {
 
 /**
  * @async Asynchronously fetch a group of URLs and response through callback
- * @param {string[]} urls       Array of string URLs
- * @param {function} callback   Promise callback function
+*  @param {FetchFormat[]} fetchFormats      Array of objects for fetch()
+ * @param {function} callback               Promise callback function
  */
-var fetchAll = async function(urls, callback) {
+var fetchAll = async function(fetchFormats, callback) {
     // Overridden vanilla fetch() w/ async/await
-    let _fetch = async function(url) {
-        let res = await fetch(url);
+    let _fetch = async function(ff) {
+        let res = await fetch(
+            ff.url, 
+            ff.isGet 
+                ? {}
+                : { method: 'POST', headers: ff.headers, body: ff.body }
+        );
 
         return await res.json();
     }
 
     await Promise
-        .all(urls.map((u) => _fetch(u)))
+        .all(fetchFormats.map((ff) => _fetch(ff)))
         .then((responses) => callback(responses));
 }
 
 
 
 /**
- * NOTE: If a new bilingual translation API is 'plugged-in', this function needs to be overriden/modified
- * 
- * Generate URLs for bilingual translation
- * @param {Tokeniser} tokeniser     Tokeniser instance
- * @return {string[]}               URLs for bilingual translation API               
- */
-var makeBilingualURLs = function(tokeniser) {
-    console.log(`Bilingual Request`, tokeniser);
-
-    let urls = [];
-    let _tokenObj = tokeniser.APIFormat;
-
-    if(bilingualAPI.domain === BAIDU_DOMAIN) {
-        // Default bilingual translation API: BAIDU
-        let _query = {
-            q: _tokenObj.tokens.join('\n'),
-            from: _tokenObj.from,
-            to: _tokenObj.to,
-            salt: (new Date).getTime()
-        }
-
-        if(_query.from === 'fr') _query.from = 'fra';
-        if(_query.to === 'fr') _query.to = 'fra';
-
-        // https://api.fanyi.baidu.com/doc/21
-        let _sign = MD5(bilingualAPI.getKey('appid') + _query.q + _query.salt + bilingualAPI.getKey('key'));
-        let _url = encodeURI(
-            `${bilingualAPI.domain}?q=${_query.q}&from=${_query.from}&to=${_query.to}&appid=${BAIDU_APPID}&salt=${_query.salt}&sign=${_sign}`
-        );
-
-        urls.push(_url);
-    } else {
-        // Modifications for new bilingual translation API
-        // urls = ...
-    }
-
-    return urls;
-}
-
-/**
- * NOTE: If a new bilingual translation API is 'plugged-in', this function needs to be overriden/modified
- * 
- * Callback function for bilingual translation API
- * @param {Tokeniser} tokeniser     Oringinal tokeniser instance
- * @param {string[]} responses      Bilingual API response
- */
-var bilingualCallback = function(tokeniser, responses) {
-    console.log(`Bilingual Response`, responses);
-
-    if(bilingualAPI.domain === BAIDU_DOMAIN) {
-        let _res = responses[0];
-
-        if(_res.hasOwnProperty('trans_result')) { 
-            // Language recognition from BAIDU
-            let _bFrom = _res.from;
-            let _bTo = _res.to;
-
-            if(_bFrom === 'fra') _bFrom = 'fr';
-            if(_bTo === 'fra') _bTo = 'fr';
-
-            // 1. Make paraphrase URLs for each translated token
-            let _bRes = _res.trans_result;
-            let _newToken = (_bFrom === _bTo) ? _bRes[0].dst : _bRes.map((res) => res.dst).join(' ');
-            let _resTokeniser = new Tokeniser(_newToken, _bTo, _bTo);
-            let _bResURLs = makeParaphraseURLs(_resTokeniser);
-
-            // 2. Fetch & process w/ paraphrase callback
-            fetchAll(_bResURLs, (newResponse) => paraphraseCallback(_resTokeniser, newResponse, tokeniser.tokens));
-        } else if(_res.hasOwnProperty('error_code')) {
-            console.error('Default bilingual API error');
-        }
-
-    } else {
-        // Modifications for new bilingual translation API
-    }
-}
-
-/**
- * NOTE: If a new paraphrase translation API is 'plugged-in', this function needs to be overriden/modified
- * 
- * Generate URLs for paraphrase translation
- * @param {Tokeniser} tokeniser     Tokeniser instance
- * @return {string[]}               URLs for paraphrase translation API
- */
-var makeParaphraseURLs = function(tokeniser) {
-    console.log(`Paraphrase Request`, tokeniser);
-
-    let urls = [];
-    let _tokenObj = tokeniser.APIFormat;
-
-    if(paraphraseAPI.domain === GDICT_DOMAIN) {
-        urls = _tokenObj.tokens.map((token) => `${paraphraseAPI.domain}/${_tokenObj.lang}/${token}`);
-    } else {
-        // Modifications for new paraphrase translation API
-        // urls = ...
-    }
-
-    return urls;
-}
-
-/**
- * NOTE: If a new paraphrase translation API is 'plugged-in', this function needs to be overriden/modified
- * 
- * Callback function for bilingual translation API
- * @param {Tokeniser} tokeniser     Oringinal tokeniser instance
- * @param {string[]} responses      Bilingual API response
- * @param {string[]} sources        Source tokens from bilingual callback (optional)
- */
-var paraphraseCallback = function(tokeniser, responses, sources=[]) {
-    console.log(`Paraphrase Response`, responses);
-
-    if(paraphraseAPI.domain === GDICT_DOMAIN) {
-        let _translations = [];
-
-        if(Array.isArray(responses)) {
-            responses.forEach((response, index) => {
-                // 1. Form translation object
-                let _translation = {
-                    target: '',
-                    paraphrases: []
-                }
-
-                // 2. Add paraphrases
-                if(Array.isArray(response)) {
-                    _translation.target = response[0].word;
-                    _translation.source = sources[index] || sources[0];
-
-                    response.forEach((res) => {
-                        if(res.meanings.length > 0) {
-                            res.meanings.forEach((r) => {
-                                _translation.paraphrases.push({
-                                    prototype: res.word,
-                                    pos: r.partOfSpeech,
-                                    definitions: r.definitions.map((def) => def.definition).slice(0, PARAPHRASE_AMOUNT)
-                                });
-                            });
-                        }
-                        
-                    });
-                } else {
-                    _translation.target = tokeniser.getToken(index);
-                }
-                
-                _translations.push(_translation);
-            });
-
-            // 3. Send translation result to ContentScript
-            Browser.tabs.query(tabQueryInfo, (tabs) => {
-                if(Array.isArray(tabs) && tabs.length > 0) {
-                    Browser.tabs.sendMessage(tabs[0].id, { _translations });
-                } else {
-                    console.error('Tabs not found', _translations);
-                }
-            });
-        } else {
-            console.error('Default paraphrase API error');
-        }
-    } else {
-        // Modifications for new paraphrase translation API
-    }
-}
-
-
-
-/**
- * Global process
  * Event registration
  */
 // On extension installed
- Browser.runtime.onInstalled.addListener((details) => {
-    console.log('TranslPrime ServiceWorker loaded', details);
+ Browser.runtime.onInstalled.addListener((details) => { 
+    if(Browser.contextMenus && Browser.storage.local) {
+        console.log('TranslPrime ServiceWorker loaded', details);
 
-    // 1. Register context menu item(s)
-    if(Browser.contextMenus) {
+        // 1. Register context menu items
         Browser.contextMenus.create({
-            id: 'TranslPrime',
-            title: '[TranslPrime] Translate selected text',
+            id: 'TranslPrime1',
+            title: '[TranslPrime] Translate Selected Text',
             contexts: ['selection']
         });
+
+        Browser.contextMenus.create({
+            id: 'TranslPrime2',
+            title: '[TranslPrime] Get Lexical Explanation',
+            contexts: ['selection']
+        });
+
+        Browser.contextMenus.create({
+            id: 'TranslPrime3',
+            title: '[TranslPrime] Take Note',
+            contexts: ['selection', 'page']
+        });
+
+        // 2. Set/reset Browser.storage.local data
+        Browser.storage.local.set({ 
+            srclang: 'auto', 
+            tarlang: 'en', 
+            notes: [], 
+            notecats: ['Default']
+        });
+    } else {
+        printErrors(0);
     }
-    
-    // 3. Set/reset S-Lang & T-Lang to 'auto' (source) and 'en' (target) in Browser.storage.local
-    Browser.storage.local.set({ 
-        srclang: 'auto', 
-        tarlang: 'en', 
-        notes: [], 
-        notecats: ['Default'] 
-    });
  });
 
-// On registered item clicked
+// On registered item(s) clicked
 Browser.contextMenus.onClicked.addListener((info) => {
-    let _selText = info.selectionText;
+    // Translation (isTranslate = TRUE: translate) (isTranslate = FALSE: paraphrase) function
+    let _translation = function(isTranslate, text) {
+        // Main process fetchAll
+        let _mainFetchAll = function(fetchFormats, api, tokeniser) {
+            // 1. Fetch result
+            fetchAll(fetchFormats, (result) => {
+                Browser.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    // 2. Construct ContentScript format
+                    let CSFormat = api.toCSFormat(result, tokeniser);
 
-    if(_selText) {
-        Browser.storage.local.get(['srclang', 'tarlang'], (result) => {
-            // 1. Register selected text in tokeniser
-            let _tokeniser = new Tokeniser(_selText, result.srclang, result.tarlang);
-        
-            // 2. Construct URLs from tokeniser;
-            let _urls = _tokeniser.isBilingual
-                ? makeBilingualURLs(_tokeniser)
-                : makeParaphraseURLs(_tokeniser);
-            
-            // 3. Fetch all URLs and pass result to ContentScript
-            fetchAll(_urls, (res) => _tokeniser.isBilingual ? bilingualCallback(_tokeniser, res) : paraphraseCallback(_tokeniser, res));
-        });
+                    // 3. Send to the current active tab
+                    if(Array.isArray(tabs) && tabs.length > 0) {
+                        Browser.tabs.sendMessage(tabs[0].id, { isTranslate, result: CSFormat });
+                    } else {
+                        printErrors(3, CSFormat);
+                    }
+                });
+            });
+        }
+
+        // 1. Decide which API will be used
+        let _API = isTranslate ? translateAPI : paraphraseAPI;
+
+        if(text) {
+            Browser.storage.local.get(['srclang', 'tarlang'], (result) => {
+                // 2. Construct tokeniser
+                let _tokeniser = new Tokeniser(text, result.srclang, result.tarlang);
+
+                // 3. Construct fetch parameters & deliver API result to ContentScript
+                if(_API.domain === FREEDICT_DOMAIN) {
+                    _API.toFetchFormat(_tokeniser).then((fdResult) => _mainFetchAll(fdResult, _API, _tokeniser));
+                } else {
+                    _mainFetchAll(_API.toFetchFormat(_tokeniser), _API, _tokeniser);
+                }
+            });
+        } else {
+            printErrors(1);
+        }
+    }
+
+    // Note-taking function
+    let _takeNote = function(text) {}
+
+    switch (info.menuItemId) {
+        case 'TranslPrime1': _translation(true, info.selectionText); break;
+        case 'TranslPrime2': _translation(false, info.selectionText); break;
+        case 'TranslPrime3': _takeNote(); break;
+        default: break;
     }
 });

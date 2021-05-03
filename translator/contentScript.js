@@ -253,14 +253,32 @@ var getDivTemplate = function(tier, id, style={}, attrs={}) {
 }
 
 /**
+ * Get TranslMenuElement template for a <span> or a <p>
+ * @param {boolean} isSpan          Whether the elemnt is <span> or <p> (TRUE: span) (FALSE: p)
+ * @param {number} tier             Span/p tier
+ * @param {string} id               Span/p ID
+ * @param {string} textContent      Span/p inner text
+ * @param {object} style            Span/p style
+ * @returns {TranslMenuElement}     Span/p TranslMenuElement template
+ */
+var getTextTemplate = function(isSpan, tier, id, textContent, style={}) {
+    return new TranslMenuElement({
+        tier,
+        id,
+        type: isSpan ? 'span' : 'p',
+        style,
+        attrs: { textContent }
+    });
+}
+
+/**
  * Get TranslMenuElement tempalte for a <hr>
- * @param {number} tier             Hr tier
  * @param {string} id               Hr ID
  * @returns {TranslMenuElement}     Hr TranslMenuElement template
  */
-var getHrTemplate = function(tier, id) {
+var getHrTemplate = function(id) {
     return new TranslMenuElement({ 
-        tier,
+        tier: 1,
         id,
         type: 'hr',
         style: { 
@@ -362,59 +380,75 @@ var getTextAreaTemplate = function(tier, id) {
 
 
 /**
- * Create a single translation entry
- * @param {number} index                Entry index 
- * @param {Translation} translation     Translation result from ServiceWorker (see Readme for detail)
- * @returns {TranslMenuElement}         TranslMenuElement storing the translation result 
+ * Create the translate entry | paraphrase entries
+ * @param {object} message          Translation result from ServiceWorker (see Readme for detail)
+ * @returns {TranslMenuElement}     TranslMenuElement storing the translation result 
  */
-var createMenuEntry = function(index, translation) {
-    let _entryID = `translentry${index+1}`;
+ var createEntries = function(message) {
+    let result = null;
 
-    let _createEntryTitle = function(target, source='') {
-        let _source = (source && target.toLocaleLowerCase() !== source.toLocaleLowerCase()) ? ` [${source}]` : '';
+    if(message.isTranslate) {
+        result = getDivTemplate(1, `translprime-translentry1`, { margin: '10px 5px' });
 
-        return new TranslMenuElement({
-            tier: 2,
-            type: 'span',
-            id: `${_entryID}-title`,
-            style: { fontSize: '18px', fontWeight: 'bold' },
-            attrs: { textContent: target + _source }
+        result.addChild(getTextTemplate(
+            true,
+            2, 
+            `translentry1-transltitle`,
+            `${message.result.translate.target} [${message.result.translate.source}]`,
+            { fontSize: '18px', fontWeight: 'bold' }
+        ));
+    } else {
+        result = message.result.paraphrase.map((paraph, i) => {
+            let _pentryID = `translentry${i+1}`;
+            let pEntry = getDivTemplate(1, `translprime-${_pentryID}`, { margin: '10px 5px' });
+
+            pEntry.addChild(getTextTemplate(
+                true,
+                2,
+                `${_pentryID}-paraphtitle`,
+                paraph.origin,
+                { fontSize: '18px', fontWeight: 'bold' }
+            ));
+
+            paraph.targets.forEach((target, j) => {
+                let targetDiv = getDivTemplate(2, `${_pentryID}-paraphtar${j+1}`);
+
+                targetDiv.addChild(getTextTemplate(
+                    false,
+                    3,
+                    `paraphtar${j+1}-title`,
+                    `${j+1}. ${target.word}`,
+                    { fontSize: '15px', fontWeight: 'bold' }
+                ));
+
+                target.meanings.forEach((meaning, k) => {
+                    targetDiv.addChild(getTextTemplate(
+                        false,
+                        3,
+                        `paraphtar${j+1}-${k+1}pos`,
+                        `${meaning.pos}`,
+                        { fontSize: '12px', fontWeight: 'bold' }
+                    ));
+
+                    meaning.definitions.forEach((definition, l) => {
+                        targetDiv.addChild(getTextTemplate(
+                            false,
+                            3,
+                            `paraphtar${j+1}-${k+1}def${l+1}`,
+                            `- ${definition}`,
+                            { fontSize: '12px' }
+                        ));
+                    });
+                });
+
+                pEntry.addChild(targetDiv);
+            });
+
+            return pEntry;
         });
     }
 
-    let _createEntryParaphrase = function(paraphrase, pindex) {
-        let _paraphraseID = `paraphrase${pindex+1}`;
-
-        let pDiv = getDivTemplate(2, `${_entryID}-${_paraphraseID}`, { display: 'block' });
-
-        pDiv.addChild(new TranslMenuElement({
-            tier: 3,
-            type: 'span',
-            id: `${_paraphraseID}-pos`,
-            style: { fontSize: '12px', fontWeight: 'bold' },
-            attrs: { textContent: paraphrase.pos }
-        }));
-
-        pDiv.addChild(paraphrase.definitions.map((def, di) => new TranslMenuElement({
-            tier: 3,
-            type: 'p',
-            id: `${_paraphraseID}-definition${di+1}`,
-            style: { margin: '0px', fontSize: '12px' },
-            attrs: { textContent: `- ${def}` }
-        })));
-
-        return pDiv;
-    }
-
-    // 1. Create entry HTMLDivElement
-    let entry = getDivTemplate(1, `translprime-${_entryID}`, { margin: '10px 5px' });
-
-    // 2.1 Add entry title
-    entry.addChild(_createEntryTitle(translation.target, translation.source));
-    // 2.2 Add entry paraphrases
-    entry.addChild(translation.paraphrases.map((p, pi) => _createEntryParaphrase(p, pi)));
-
-    return entry;
+    return result;
 }
 
 /**
@@ -551,9 +585,7 @@ console.log('TranslPrime ContentScript loaded');
  */
 // On received message from ServiceWorker
 Browser.runtime.onMessage.addListener((message) => {
-    console.log('Translation', message._translations);
-
-    let _translKeys = message._translations.map((transl) => transl.target);
+    console.log('Translation', message);
 
     Browser.storage.local.get(['srclang', 'tarlang', 'notes', 'notecats'], (result) => {
         // 0. Remove existing menu
@@ -583,26 +615,29 @@ Browser.runtime.onMessage.addListener((message) => {
             lineHeight: 'normal'
         });
 
+        // 2. Create translate/paraphrase entries
+        _overallMenu.addChild(createEntries(message));
+
         // 2. Create translation entries
-        message._translations.forEach((_transl, index) => _overallMenu.addChild(createMenuEntry(index, _transl)));
+        // message._translations.forEach((_transl, index) => _overallMenu.addChild(createMenuEntry(index, _transl)));
         
-        _overallMenu.addChild(getHrTemplate(1, 'translprime-hr1'));
+        // _overallMenu.addChild(getHrTemplate(1, 'translprime-hr1'));
 
         // 3. Create note display section
-        _overallMenu.addChild(getDivTemplate(1, 'translprime-notedisplay', { margin: '10px 5px' }));
+        // _overallMenu.addChild(getDivTemplate(1, 'translprime-notedisplay', { margin: '10px 5px' }));
         
-        _overallMenu.addChild(getHrTemplate(1, 'translprime-hr2'));
+        // _overallMenu.addChild(getHrTemplate(1, 'translprime-hr2'));
 
         // 4.1 Create button set
-        _overallMenu.addChild(createMenuButtons());
+        // _overallMenu.addChild(createMenuButtons());
         // 4.2 Create 'invisible' note input set
-        _overallMenu.addChild(createMenuNoteInput(result, message._translations));
+        // _overallMenu.addChild(createMenuNoteInput(result, message._translations));
 
         // Render
         document.body.appendChild(_overallMenu.HTMLElement);
 
         // Display possible note(s)
-        displayNote(_translKeys, result.notes);
+        // displayNote(_translKeys, result.notes);
     });
 
     return true;
