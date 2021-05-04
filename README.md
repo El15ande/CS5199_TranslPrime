@@ -6,12 +6,11 @@
 
 - Google Chrome: install extensions in `chrome://extensions` -> 'Load unpacked'
 
-### Supported languages
+### Supported target languages
 
 - English
 - German
 - French
-- Simplified/Traditional Chinese
 
 ## Technology Stack
 

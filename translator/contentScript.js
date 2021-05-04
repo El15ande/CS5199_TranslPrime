@@ -612,7 +612,7 @@ Browser.runtime.onMessage.addListener((message) => {
             // Font
             color: '#FFFFFF',
             fontFamily: `'Segoe UI Web (West European)', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif`,
-            lineHeight: 'normal'
+            lineHeight: 1
         });
 
         // 2. Create translate/paraphrase entries

@@ -155,8 +155,10 @@ var BAIDUTranslateAPI = new TranslationAPI(
     },
     (result, tokeniser) => {
         // https://api.fanyi.baidu.com/doc/21
-        // console.log(result, tokeniser);
-        
+        console.log(result, tokeniser);
+
+        if(!Array.isArray(result)) result = [result];
+
         return {
             langs: [result[0].from, result[0].to],
             translate: {
@@ -232,7 +234,7 @@ var FreeDictionaryAPI = new TranslationAPI(
                         url: `${api.domain}/${tcsFormat.langs[1]}/${tcsFormat.translate.target}`
                     };
                 }));
-            });
+            }, (translateAPI.domain === BAIDU_DOMAIN && _tFetchFormats.length > 1) ? 1000 : 0);
         });
     },
     (result, tokeniser) => {
@@ -268,7 +270,7 @@ var FreeDictionaryAPI = new TranslationAPI(
 );
 
 // T-API 'socket'
-var translateAPI = MSTranslatorAPI;
+var translateAPI = BAIDUTranslateAPI;
 
 // P-API 'socket'
 var paraphraseAPI = FreeDictionaryAPI;
@@ -547,8 +549,9 @@ var MD5 = function(text) {
  * @async Asynchronously fetch a group of URLs and response through callback
 *  @param {FetchFormat[]} fetchFormats      Array of objects for fetch()
  * @param {function} callback               Promise callback function
+ * @param {number} delay                    Delay (ms) between API calls
  */
-var fetchAll = async function(fetchFormats, callback) {
+var fetchAll = async function(fetchFormats, callback, delay=0) {
     // Overridden vanilla fetch() w/ async/await
     let _fetch = async function(ff) {
         let res = await fetch(
@@ -561,9 +564,26 @@ var fetchAll = async function(fetchFormats, callback) {
         return await res.json();
     }
 
-    await Promise
-        .all(fetchFormats.map((ff) => _fetch(ff)))
-        .then((responses) => callback(responses));
+    if(delay > 0) {
+        let results = [];
+        
+        // Predefined delay
+        let _delay = function() {
+            return new Promise((res) => setTimeout(res, delay));
+        }
+
+        // Serial delay and fetch
+        for(let fetchFormat of fetchFormats) {
+            results.push(await _delay().then(() => _fetch(fetchFormat)));
+        }
+
+        callback(results);
+    } else {
+        // Parallel delay
+        await Promise
+            .all(fetchFormats.map((ff) => _fetch(ff)))
+            .then((responses) => callback(responses));
+    }
 }
 
 
