@@ -321,6 +321,28 @@ var getButtonTemplate = function(tier, id, textContent, onclick) {
 }
 
 /**
+ * Get TranslMenuElement template for a label of any input
+ * @param {number} tier             Label tier
+ * @param {string} id               Label ID
+ * @param {string} textContent      Label text
+ * @param {string} forid            Label for attribute
+ * @param {object} style            Label style
+ * @returns {TranslMenuElement}     Label TranslMenuElement template
+ */
+var getLabelTemplate = function(tier, id, textContent, forid, style={}) {
+    return new TranslMenuElement({
+        tier,
+        id,
+        type: 'label',
+        style,
+        attrs: {
+            for: forid,
+            textContent
+        }
+    });
+}
+
+/**
  * Get TranslMenuElement template for a select menu
  * @param {number} tier             Select tier
  * @param {string} id               Select ID 
@@ -358,22 +380,27 @@ var getSelectTemplate = function(tier, id, options) {
 
 /**
  * Get TranslMenuElement template for a <textarea>
- * @param {number} tier             Textarea tier
- * @param {string} id               Textarea ID
- * @returns {TranslMenuElement}     Textarea TranslMenuElement template
+ * @param {boolean} isInput         Whether the elemnt is <input> or <textarea> (TRUE: input) (FALSE: textarea)
+ * @param {number} tier             Input/textarea tier
+ * @param {string} id               Input/textarea ID
+ * @param {string} text             Input/textarea pre-input text(s)
+ * @returns {TranslMenuElement}     Input/textarea TranslMenuElement template
  */
-var getTextAreaTemplate = function(tier, id) {
+var getInputTemplate = function(isInput, tier, id, text='') {
     return new TranslMenuElement({
         tier,
         id,
-        type: 'textarea',
+        type: isInput ? 'input' : 'textarea',
         style: {
             margin: '0 10px 10px 10px',
             padding: '0',
             border: '0',
             maxWidth: '480px'
         },
-        attrs: { cols: 30 }
+        attrs: { 
+            value: text,
+            cols: 30 
+        }
     });
 }
 
@@ -486,11 +513,19 @@ var createMenuButtons = function() {
 
 /**
  * Create the note input set
- * @param {object} result               Data retrieved from browser storage
- * @param {Translation[]} translations  Translation result
- * @returns {TranslMenuElement}         TranslMenuElement for the note input set in tool area
+ * @param {object} result                           Data retrieved from browser storage
+ * @param {Translate | Paraphrase[]} translation    Translation result
+ * @returns {TranslMenuElement}                     TranslMenuElement for the note input set in tool area
  */
-var createMenuNoteInput = function(result, translations) {
+var createMenuNoteInput = function(result, translation) {
+    let _getTranslationKeys = function() {
+        if(translation.translate) {
+            return translation.translate.target.replace(' ', ',');
+        } else if(translation.paraphrase) {
+            return translation.paraphrase.map((p) => p.origin).join(',');
+        }
+    }
+
     let noteInputSet = getDivTemplate(1, 'translprime-noteinput', { 
         display: 'none',
         position: 'center',
@@ -499,41 +534,21 @@ var createMenuNoteInput = function(result, translations) {
     });
 
     // 1. Add <select> categories
-    noteInputSet.addChild(new TranslMenuElement({
-        tier: 2,
-        id: 'noteinput-taglabel',
-        type: 'label',
-        style: { marginLeft: '10px' },
-        attrs: {
-            for: 'translnoteinput-category',
-            textContent: 'Note Tag'
-        }
-    }));
+    noteInputSet.addChild(getLabelTemplate(2, 'noteinput-taglabel', 'Note Tag', 'translnoteinput-category', { marginLeft: '10px' }));
     noteInputSet.addChild(getSelectTemplate(2, 'translnoteinput-category', result.notecats));
 
-    // 2. Add <textarea> body
-    noteInputSet.addChild(new TranslMenuElement({
-        tier: 2,
-        id: 'noteinput-textlabel',
-        type: 'label',
-        style: { marginLeft: '10px', fontSize: '15px' },
-        attrs: {
-            for: 'translnoteinput-body',
-            textContent: 'Note'
-        }
-    }));
-    noteInputSet.addChild(getTextAreaTemplate(2, 'translnoteinput-body'));
+    // 2. Add <input> note keys
+    noteInputSet.addChild(getLabelTemplate(2, 'noteinput-keylabel', 'Note Keyword(s)', 'translnoteinput-keys', { marginLeft: '10px' }));
+    noteInputSet.addChild(getInputTemplate(true, 2, 'translnoteinput-keys', _getTranslationKeys()));
 
-    // 3. Add explanation
-    noteInputSet.addChild(new TranslMenuElement({
-        tier: 2,
-        type: 'span',
-        id: 'translnoteinput-hint',
-        style: { marginLeft: '10px', marginBottom: '10px', fontSize: '12px' },
-        attrs: { textContent: `Click 'Save' to save note.` }
-    }));
+    // 3. Add <textarea> body
+    noteInputSet.addChild(getLabelTemplate(2, 'noteinput-textlabel', 'Note', 'translnoteinput-body', { marginLeft: '10px', fontSize: '15px' }));
+    noteInputSet.addChild(getInputTemplate(false, 2, 'translnoteinput-body'));
 
-    // 4. Add save button
+    // 4. Add explanation
+    noteInputSet.addChild(getTextTemplate(true, 2, 'translnoteinput-hint', `Click 'Save' to save note.`, { marginLeft: '10px', marginBottom: '10px', fontSize: '12px' }));
+
+    // 5. Add save button
     noteInputSet.addChild(getButtonTemplate(2, 'translnoteinput-savebtn', 'Save', (e) => {
         let _npair;
         let _notes = result.notes;
@@ -547,6 +562,7 @@ var createMenuNoteInput = function(result, translations) {
             _npair = Object.assign(_enote, {
                 id: (new Date).getTime(),
                 cat: document.getElementById('translnoteinput-category').value,
+                keys: document.getElementById('translnoteinput-keys').value.split(','),
                 note: document.getElementById('translnoteinput-body').value,
             });
             _notes = _notes.filter((n) => n.id !== _eid);
@@ -557,9 +573,9 @@ var createMenuNoteInput = function(result, translations) {
             _npair = {
                 id: (new Date).getTime(),
                 cat: document.getElementById('translnoteinput-category').value,
+                keys: document.getElementById('translnoteinput-keys').value.split(','),
                 note: document.getElementById('translnoteinput-body').value,
                 lang: result.tarlang,
-                keys: translations.map((transl) => transl.target)
             };
         }
         console.log('Note', _npair);
@@ -617,21 +633,18 @@ Browser.runtime.onMessage.addListener((message) => {
 
         // 2. Create translate/paraphrase entries
         _overallMenu.addChild(createEntries(message));
-
-        // 2. Create translation entries
-        // message._translations.forEach((_transl, index) => _overallMenu.addChild(createMenuEntry(index, _transl)));
         
-        // _overallMenu.addChild(getHrTemplate(1, 'translprime-hr1'));
+        _overallMenu.addChild(getHrTemplate(1, 'translprime-hr1'));
 
         // 3. Create note display section
-        // _overallMenu.addChild(getDivTemplate(1, 'translprime-notedisplay', { margin: '10px 5px' }));
+        _overallMenu.addChild(getDivTemplate(1, 'translprime-notedisplay', { margin: '10px 5px' }));
         
-        // _overallMenu.addChild(getHrTemplate(1, 'translprime-hr2'));
+        _overallMenu.addChild(getHrTemplate(1, 'translprime-hr2'));
 
         // 4.1 Create button set
-        // _overallMenu.addChild(createMenuButtons());
+        _overallMenu.addChild(createMenuButtons());
         // 4.2 Create 'invisible' note input set
-        // _overallMenu.addChild(createMenuNoteInput(result, message._translations));
+        _overallMenu.addChild(createMenuNoteInput(result, message.result));
 
         // Render
         document.body.appendChild(_overallMenu.HTMLElement);

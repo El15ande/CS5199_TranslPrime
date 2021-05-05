@@ -28,9 +28,9 @@
 - `notes: Note[]`: notes taken
   - `Note.id: Date`: time of note taken
   - `Note.cat: string`: note category
+  - `Note.keys: string[]`: corresponding word/sentence translation
   - `Note.note: string`: note text
   - `Note.lang: string`: T-Lang when note is taken
-  - `Note.keys: string[]`: translation context
 - `notecats: string[]`: array of note categories
 
 ### `ServiceWorker`
@@ -103,7 +103,7 @@
     <hr>
 
     <!-- Note section -->
-    <div id="translprime-notedisplay" tier="1"></div>
+    <div id="translprime-notedisplay" tier="1">
       <div id="notedisplay-groups">
         <div id="notedisplay-group1">
           <span id="note1-head">Note @ sometime</span>
@@ -113,12 +113,12 @@
           <div id="note1-line2">Line2</div>
           <!-- For m lines in the note, id goes from noten-line1 to noten-linem -->
         </div>
-
         <!-- For n notes, id goes from notedisplay-group1 to notedisplay-groupn -->
       </div>
 
       <!-- If no note is found -->
       <div id="notedisplay-null">No note for this translation yet</div>
+    </div>
     <hr>
 
     <div id="translprime-buttons" tier="1">
@@ -127,12 +127,20 @@
     </div>
 
     <div id="translprime-noteinput" tier="1">
+      <!-- Category selection -->
+      <label id="noteinput-taglabel" tier="2">Note Tag</label>
       <select id="translnoteinput-category" tier="2">
         <option value="Default">Default</option>
-        <!-- Other customised options -->
+        <!-- Other customised category options -->
       </select>
+      <!-- Note keys input -->
+      <label id="noteinput-keylabel" tier="2">Note Keyword(s)</label>
+      <input id="translnoteinput-keys" tier="2">
+      <!-- Note input -->
+      <label id="noteinput-textlabel" tier="2">Note</label>
       <textarea id="translnoteinput-body" tier="2">
       <span id="translnoteinput-hint" tier="2">...</span>
+      <!-- Save button -->
       <button type="button" id="translnoteinput-savebtn" tier="2">Save</button>
     </div>
 
