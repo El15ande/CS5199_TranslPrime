@@ -121,10 +121,10 @@ var getWindowSelection = function() {
 
 /**
  * Display notes in translation menu
- * @param {string[]} keys       Translation word(s) 
- * @param {Note | Note[]} note  Notes 
+ * @param {object} message          Translation result from ServiceWorker (see Readme for detail)
+ * @param {Note | Note[]} note      Notes 
  */
-var displayNote = function(keys, note) {
+var displayNote = function(message, note=[]) {
     let _getDate = function(id) {
         let _date = new Date(id);
 
@@ -152,14 +152,10 @@ var displayNote = function(keys, note) {
     let _createDisplayEntry = function(note, index) {
         let entryDiv = getDivTemplate(3, `notedisplay-group${index}`);
 
-        entryDiv.addChild(new TranslMenuElement({
-            tier: 4,
-            type: 'span',
-            id: `note${index}-head`,
-            style: { fontSize: '15px', fontWeight: 'bold' },
-            attrs: { textContent: `Note @ ${_getDate(note.id)}` }
-        }));
+        // Head (date)
+        entryDiv.addChild(getTextTemplate(true, 4, `note${index}-head`, `Note [${_getDate(note.id)}]`, { fontSize: '15px', fontWeight: 'bold', lineHeight: 2 }));
 
+        // Edit button
         entryDiv.addChild(getButtonTemplate(4, `note${index}-editbtn`, 'Edit', (e) => {
             let _this = document.getElementById(`note${index}-editbtn`);
 
@@ -175,6 +171,7 @@ var displayNote = function(keys, note) {
                     document.getElementById('translbutton-notebtn').textContent = 'Close Note';
                     
                     document.getElementById('translnoteinput-category').value = editedNote.note.cat;
+                    document.getElementById('translnoteinput-keys').value = editedNote.note.keys.join(',');
                     document.getElementById('translnoteinput-body').value = editedNote.note.note;
                 });
             } else if(_this.textContent === 'Editing') {
@@ -182,12 +179,14 @@ var displayNote = function(keys, note) {
 
                 editedNote = null;
                 document.getElementById('translnoteinput-category').value = 'Default';
+                document.getElementById('translnoteinput-keys').value = '';
                 document.getElementById('translnoteinput-body').value = '';
             }
 
             
         }));
 
+        // Delete button
         entryDiv.addChild(getButtonTemplate(4, `note${index}-delbtn`, 'Delete', (e) => {
             Browser.storage.local.get(['notes'], (result) => {
                 let _otherNotes = result.notes.filter((n) => n.id !== note.id);
@@ -199,11 +198,19 @@ var displayNote = function(keys, note) {
             });
         }));
 
+        // Keywords
+        entryDiv.addChild(getDivTemplate(4,
+            `note${index}-keys`,
+            { fontSize: '12px', fontWeight: 'bold', lineHeight: 2 },
+            { textContent: `Keyword: ${note.keys.join(',')}` }
+        ));
+
+        // Note lines
         let noteLines = note.note.split('\n');
         noteLines.forEach((nl, nlindex) => {
             entryDiv.addChild(getDivTemplate(4, 
                 `note${index}-line${nlindex+1}`, 
-                { fontSize: '12px' }, 
+                { fontSize: '12px', lineHeight: 2 }, 
                 { textContent: nl }
             ));
         });
@@ -211,22 +218,33 @@ var displayNote = function(keys, note) {
         return entryDiv;
     }
 
-    let noteElements = [];
+    let _noteElements = [];
 
-    if(Array.isArray(note) && note.length > 0) {
-        let _matchedNotes = note.filter((n) => keys.some((r) => n.keys.includes(r)));
+    if(note.length > 0) {
+        let _keys = [];
 
-        _matchedNotes.forEach((mnote, index) => noteElements.push(_createDisplayEntry(mnote, index+1)));
+        if(message.isTranslate) {
+            _keys = [message.result.translate.source.toLowerCase(), message.result.translate.target.toLowerCase()];
+        } else {
+            message.result.paraphrase.forEach((p) => {
+                _keys.push(p.origin.toLowerCase());
+                p.targets.forEach((target) => _keys.push(target.word.toLowerCase()));
+            });
+        }
+        console.log(_keys);
+
+        let _matchedNotes = note.filter((n) => _keys.some((r) => n.keys.map((key) => key.toLowerCase()).includes(r)));
+        _matchedNotes.forEach((mnote, index) => _noteElements.push(_createDisplayEntry(mnote, index+1)));
     } else if (!(note instanceof Array)) {
         let _len = document.getElementById('translprime-notedisplay').childNodes.length + 1;
         if(document.getElementById('notedisplay-null')) _len--;
 
-        noteElements.push(_createDisplayEntry(note, _len));
+        _noteElements.push(_createDisplayEntry(note, _len));
     }
 
-    if(noteElements.length > 0) {
+    if(_noteElements.length > 0) {
         if(document.getElementById('notedisplay-null')) document.getElementById('notedisplay-null').remove();
-        noteElements.forEach((ne) => document.getElementById('translprime-notedisplay').appendChild(ne.HTMLElement));
+        _noteElements.forEach((ne) => document.getElementById('translprime-notedisplay').appendChild(ne.HTMLElement));
     } else {
         document.getElementById('translprime-notedisplay').appendChild(_createDisplayNull().HTMLElement);
     }
@@ -649,8 +667,8 @@ Browser.runtime.onMessage.addListener((message) => {
         // Render
         document.body.appendChild(_overallMenu.HTMLElement);
 
-        // Display possible note(s)
-        // displayNote(_translKeys, result.notes);
+        // Display possible note(s) in existing menu
+        displayNote(message, result.notes);
     });
 
     return true;

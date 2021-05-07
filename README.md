@@ -61,7 +61,7 @@
   - Either `translate: Translate`: translate content (S-Lang to T-Lang)
     - `Translate.source`: source text
     - `Translate.target`: target text
-  - Or `paraphrases: Paraphrase[]`: paraphrase content (T-Lang)
+  - Or `paraphrase: Paraphrase[]`: paraphrase content (T-Lang)
     - `Paraphrase.origin: string`: original word
     - `Paraphrase.targets: Target[]`: (optional) translated & paraphrased word(s) w/ meaning(s)
       - `Target.word: string`: translated `origin`
@@ -104,23 +104,26 @@
 
     <!-- Note section -->
     <div id="translprime-notedisplay" tier="1">
-      <div id="notedisplay-groups">
-        <div id="notedisplay-group1">
-          <span id="note1-head">Note @ sometime</span>
-          <button id="note1-editbtn"></button>
-          <button id="note1-delbtn"></button>
-          <div id="note1-line1">Line1</div>
-          <div id="note1-line2">Line2</div>
+      <!-- If there is at least one note -->
+      <div id="notedisplay-groups" tier="2">
+        <div id="notedisplay-group1" tier="3">
+          <span id="note1-head" tier="4">Note @ sometime</span>
+          <button id="note1-editbtn" tier="4">Edit</button>
+          <button id="note1-delbtn" tier="4">Delete</button>
+          <div id="note1-keys" tier="4">Keywords: Hallo</div>
+          <div id="note1-line1" tier="4">Note line 1</div>
+          <div id="note1-line2" tier="4">Note line 2</div>
           <!-- For m lines in the note, id goes from noten-line1 to noten-linem -->
         </div>
         <!-- For n notes, id goes from notedisplay-group1 to notedisplay-groupn -->
       </div>
-
       <!-- If no note is found -->
       <div id="notedisplay-null">No note for this translation yet</div>
     </div>
+    
     <hr>
 
+    <!-- Tools section -->
     <div id="translprime-buttons" tier="1">
       <button type="button" id="translbutton-notebtn" tier="2">Add Note</button>
       <button type="button" id="translbutton-closebtn" tier="2">Close</button>
