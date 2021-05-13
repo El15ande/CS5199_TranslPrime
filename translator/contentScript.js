@@ -102,7 +102,8 @@ var getWindowSelection = function() {
     // Locate selection position
     let _sel = window.getSelection();
 
-    if(_sel.type === 'Range') {
+    // https://developer.mozilla.org/en-US/docs/Web/API/Selection/type
+    if(_sel.type === 'Range' || _sel.type === 'Caret') {
         let _DOMRect = _sel.getRangeAt(0).getBoundingClientRect();
 
         let _x = _DOMRect.left;
@@ -223,15 +224,18 @@ var displayNote = function(message, note=[]) {
     if(note.length > 0) {
         let _keys = [];
 
-        if(message.isTranslate) {
-            _keys = [message.result.translate.source.toLowerCase(), message.result.translate.target.toLowerCase()];
+        if(message.hasOwnProperty('isTranslate')) {
+            if(message.isTranslate) {
+                _keys = [message.result.translate.source.toLowerCase(), message.result.translate.target.toLowerCase()];
+            } else {
+                message.result.paraphrase.forEach((p) => {
+                    _keys.push(p.origin.toLowerCase());
+                    p.targets.forEach((target) => _keys.push(target.word.toLowerCase()));
+                });
+            }
         } else {
-            message.result.paraphrase.forEach((p) => {
-                _keys.push(p.origin.toLowerCase());
-                p.targets.forEach((target) => _keys.push(target.word.toLowerCase()));
-            });
+            _keys = [message.keyword.toLowerCase()];
         }
-        console.log(_keys);
 
         let _matchedNotes = note.filter((n) => _keys.some((r) => n.keys.map((key) => key.toLowerCase()).includes(r)));
         _matchedNotes.forEach((mnote, index) => _noteElements.push(_createDisplayEntry(mnote, index+1)));
@@ -531,16 +535,21 @@ var createMenuButtons = function() {
 
 /**
  * Create the note input set
- * @param {object} result                           Data retrieved from browser storage
- * @param {Translate | Paraphrase[]} translation    Translation result
- * @returns {TranslMenuElement}                     TranslMenuElement for the note input set in tool area
+ * @param {object} result                                   Data retrieved from browser storage
+ * @param {Translate | Paraphrase[] | string} translation   Translation result | note keyword
+ * @returns {TranslMenuElement}                             TranslMenuElement for the note input set in tool area
  */
 var createMenuNoteInput = function(result, translation) {
     let _getTranslationKeys = function() {
         if(translation.translate) {
-            return translation.translate.target.replace(' ', ',');
+            return `${translation.translate.source.replace(' ', ',')},${translation.translate.target.replace(' ', ',')}`;
         } else if(translation.paraphrase) {
-            return translation.paraphrase.map((p) => p.origin).join(',');
+            return translation.paraphrase.map((p) => {
+                return [p.origin].concat(p.targets.map((t) => t.word)).join(',');
+            })
+            .join(',');
+        } else {
+            return translation.replace(' ', ',');
         }
     }
 
@@ -556,7 +565,7 @@ var createMenuNoteInput = function(result, translation) {
     noteInputSet.addChild(getSelectTemplate(2, 'translnoteinput-category', result.notecats));
 
     // 2. Add <input> note keys
-    noteInputSet.addChild(getLabelTemplate(2, 'noteinput-keylabel', 'Note Keyword(s)', 'translnoteinput-keys', { marginLeft: '10px' }));
+    noteInputSet.addChild(getLabelTemplate(2, 'noteinput-keylabel', 'Note Keyword(s), separated by commas', 'translnoteinput-keys', { marginLeft: '10px' }));
     noteInputSet.addChild(getInputTemplate(true, 2, 'translnoteinput-keys', _getTranslationKeys()));
 
     // 3. Add <textarea> body
@@ -619,13 +628,16 @@ console.log('TranslPrime ContentScript loaded');
  */
 // On received message from ServiceWorker
 Browser.runtime.onMessage.addListener((message) => {
-    console.log('Translation', message);
+    console.log('Message', message);
+
+    let isTranslMsg = message.hasOwnProperty('isTranslate');
 
     Browser.storage.local.get(['srclang', 'tarlang', 'notes', 'notecats'], (result) => {
         // 0. Remove existing menu
         let _existMenu = document.getElementById('translprime-translmenu');
         if(_existMenu) _existMenu.remove();
 
+        // 1. Translation menu creation
         // 1.1 Get selection info.
         let _winSel = getWindowSelection();
         // 1.2 Create overall translation menu
@@ -636,8 +648,8 @@ Browser.runtime.onMessage.addListener((message) => {
             left: `${_winSel.x}px`,
             top: `${_winSel.y}px`,
             // Menu size
-            minWidth: '100px',
-            minHeight: '100px',
+            minWidth: '150px',
+            minHeight: '150px',
             maxWidth: '500px',
             // Menu style
             borderRadius: '10px',
@@ -646,29 +658,35 @@ Browser.runtime.onMessage.addListener((message) => {
             // Font
             color: '#FFFFFF',
             fontFamily: `'Segoe UI Web (West European)', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif`,
-            lineHeight: 1
+            lineHeight: 'normal'
         });
 
-        // 2. Create translate/paraphrase entries
-        _overallMenu.addChild(createEntries(message));
-        
-        _overallMenu.addChild(getHrTemplate(1, 'translprime-hr1'));
+        if(isTranslMsg) {
+            // 1.2a. Create translate/paraphrase entries
+            _overallMenu.addChild(createEntries(message));
+            _overallMenu.addChild(getHrTemplate(1, 'translprime-hr1'));
+        }
 
-        // 3. Create note display section
+        // 1.3 Create note display section
         _overallMenu.addChild(getDivTemplate(1, 'translprime-notedisplay', { margin: '10px 5px' }));
-        
         _overallMenu.addChild(getHrTemplate(1, 'translprime-hr2'));
 
-        // 4.1 Create button set
+        // 1.4 Create button set
         _overallMenu.addChild(createMenuButtons());
-        // 4.2 Create 'invisible' note input set
-        _overallMenu.addChild(createMenuNoteInput(result, message.result));
+        // 1.5 Create 'invisible' note input set
+        _overallMenu.addChild(createMenuNoteInput(result, isTranslMsg ? message.result: message.keyword));
 
-        // Render
+        // 2. Render
         document.body.appendChild(_overallMenu.HTMLElement);
 
-        // Display possible note(s) in existing menu
+        // 3. Display possible note(s) in existing menu
         displayNote(message, result.notes);
+
+        if(!isTranslMsg) {
+            // 3.1 Manually open note input set
+            document.getElementById('translprime-noteinput').style.display = 'grid';
+            document.getElementById('translbutton-notebtn').textContent = 'Close Note';
+        }
     });
 
     return true;

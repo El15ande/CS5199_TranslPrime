@@ -32,6 +32,8 @@
   - `Note.note: string`: note text
   - `Note.lang: string`: T-Lang when note is taken
 - `notecats: string[]`: array of note categories
+- `translAPIs: string[]`: list of translation APIs
+- `paraphAPIs: strings[]`: list of paraphrase APIs
 
 ### `ServiceWorker`
 
@@ -59,8 +61,8 @@
     - `langs.length = 1`: `[T-Lang]`
     - `langs.length = 2`: `[S-Lang, T-Lang]`
   - Either `translate: Translate`: translate content (S-Lang to T-Lang)
-    - `Translate.source`: source text
-    - `Translate.target`: target text
+    - `Translate.source: string`: source text
+    - `Translate.target: string`: target text
   - Or `paraphrase: Paraphrase[]`: paraphrase content (T-Lang)
     - `Paraphrase.origin: string`: original word
     - `Paraphrase.targets: Target[]`: (optional) translated & paraphrased word(s) w/ meaning(s)
@@ -69,12 +71,21 @@
         - `Meaning.pos: string`: part-of-speech
         - `Meaning.definitions: string[]`: definitions
 
+#### `Setting` message attributes
+
+- `isTranslate: boolean`: whether the API is a T-API or P-API (TRUE: T-API) (FALSE: P-API)
+- `name: string`: name of the API
+
 ### `ContentScript`
 
 #### `ServiceWorker` message attributes
 
-- `isTranslate: boolean`: whether the message is a translate message or a paraphrase message (TRUE: translate) (FALSE: paraphrase)
-- `result: Translate | Paraphrase[]`: translate/paraphrase result
+- Translation
+  - `isTranslate: boolean`: whether the message is a translate message or a paraphrase message (TRUE: translate) (FALSE: paraphrase)
+  - `result: Translate | Paraphrase[]`: translate/paraphrase result
+- Note
+  - `isSelection: boolean`: whether the note-taking is triggered with a keyword or not (TRUE: keyword = selection text) (FALSE: keyword === '')
+  - `keyword: string`: selected keyword
 
 #### Translation menu DOM structure
 

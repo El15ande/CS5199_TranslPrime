@@ -155,7 +155,7 @@ var BAIDUTranslateAPI = new TranslationAPI(
     },
     (result, tokeniser) => {
         // https://api.fanyi.baidu.com/doc/21
-        console.log(result, tokeniser);
+        console.log('Baidu Translate', result, tokeniser);
 
         if(!Array.isArray(result)) result = [result];
 
@@ -195,7 +195,7 @@ var MSTranslatorAPI = new TranslationAPI(
     },
     (result, tokeniser) => {
         // https://docs.microsoft.com/en-us/azure/cognitive-services/translator/reference/v3-0-translate
-        // console.log(result, tokeniser);
+        console.log('Microsoft Translator V3.0', result, tokeniser);
 
         let _result = Array.isArray(result[0])
             ? result[0][0]
@@ -620,10 +620,22 @@ var fetchAll = async function(fetchFormats, callback, delay=0) {
             srclang: 'auto', 
             tarlang: 'en', 
             notes: [], 
-            notecats: ['Default']
+            notecats: ['Default'],
+            translAPIs: [BAIDUTranslateAPI.name, MSTranslatorAPI.name],
+            paraphAPIs: [FreeDictionaryAPI.name]
         });
     } else {
         printErrors(0);
+    }
+ });
+
+ // On message received (from global setting)
+ Browser.runtime.onMessage.addListener((info) => {
+    console.log(`New ${info.isTranslate ? 'T' : 'P'}-API: ${info.name}`);
+
+    // Default API enumeration
+    if(info.isTranslate) {
+        translateAPI = info.name === 'Baidu Translate' ? BAIDUTranslateAPI : MSTranslatorAPI;
     }
  });
 
@@ -670,12 +682,20 @@ Browser.contextMenus.onClicked.addListener((info) => {
     }
 
     // Note-taking function
-    let _takeNote = function(text) {}
+    let _takeNote = function(keyword='') {
+        Browser.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if(Array.isArray(tabs) && tabs.length > 0) {
+                Browser.tabs.sendMessage(tabs[0].id, { isSelection: keyword !== '', keyword });
+            } else {
+                printErrors(3, keyword);
+            }
+        });
+    }
 
     switch (info.menuItemId) {
         case 'TranslPrime1': _translation(true, info.selectionText); break;
         case 'TranslPrime2': _translation(false, info.selectionText); break;
-        case 'TranslPrime3': _takeNote(); break;
+        case 'TranslPrime3': _takeNote(info.selectionText); break;
         default: break;
     }
 });
