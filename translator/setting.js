@@ -1,3 +1,66 @@
+// Translation module guidance text
+const TRANSLATION_GUIDANCE = [
+    { 
+        q: 'What is the translation module?',
+        a: ['Translation module is a set of functions that helps you to read foreign language texts fluently. It provides 2 translation-related webpage services: Translation and Lexical Explanation.']
+    },
+    {
+        q: 'What is Translation service? How to use it?',
+        a: [
+            'The Translation service is a light-weight machine translation function that turning a piece of text from one language into another (For example, a German word will be translated into its English equivalent). The translated text will be displayed on the translation popup menu with the original text in the square bracket.',
+            '1. Right-select the text (word(s) or sentence(s)) you want to translate, right-click to open the browser context menu.',
+            '2. Select "Translate Selected Text" under "TranslPrime"'
+        ]
+    },
+    {
+        q: 'What is Lexical Explanation service? How to use it?',
+        a: [
+            'The Lexical Explanation service is another light-weight machine translation function that provides the restatement of the meaning for a piece of text in another language (For example, a German word will be paraphrased in English with its meaning explained in English). The paraphrases on the translation menu includes part-of-speeches and up to 3 explanations',
+            '1. Right-select the text (word(s) and sentence(s)) you want to translate, right-click to open the browser context menu.',
+            '2. Select "Get Lexical Explanation" under "TranslPrime"'
+        ]
+    },
+    {
+        q: 'What language(s) are supported for these services?',
+        a: [
+            'The languages supported by the services includes: English, German, French, Spanish and Chinese. These languages are supported for both Source Language (the language of the original text) and Target Language (the language of the translated text on the context menu)',
+            'Source Language and Target Language can be changed either in this page (Global Setting) or in the extension popup-page (Toolbar)'
+        ]
+    },
+    {
+        q: 'Can I change the API source of translation and paraphrase?',
+        a: [
+            'Yes, the default API for Translation service is provided by BAIDU Translate, and the default API for Lexical Explanation service is provided by Free Dictionary. The Microsoft Translator V3.0 API is currently disabled.',
+            'You can also import your own translate/paraphrase API. The further detail can be found in Readme'
+        ]
+    }
+];
+
+// Note module guidance text
+const NOTE_GUIDANCE = [
+    {
+        q: 'What is the note module?',
+        a: ['Note module is a set of functions that helps you to take notes and thus learn the foreign language through reading. It allows you to take notes with (or without) a piece of text inside a webpage.']
+    },
+    {
+        q: 'How to take note?',
+        a: [
+            '1. With keyword: right-select the text (word(s) or sentence(s)), right-click to open the browser context menu and select "Take Note" under "TranslPrime", the keyword(s) will be displayed in the keyword input bar.',
+            '2. Without keyword: right-click on an arbitrary place of the webpage, right-click to open the browser context menu and select "Take Note" under "TranslPrime", the keyword input bar will be empty in this case.'
+        ]
+    },
+    {
+        q: 'What can I do with notes?',
+        a: [
+            '1. Once you have taken a piece of note on some word(s), this note will be displayed on the translation menu if this keyword is searched again.',
+            '2. A note composes of 4 elements: the unique note ID, the category, the keyword(s) and the note content. These elements can be freely edited on both translation menu and this global setting page.',
+            '3. You can search, visualise and edit your notes in this page. You can also add or remove additional note categories in this page.'
+        ]
+    }
+];
+
+
+
 // Global browser
 var Browser = chrome || browser; // TODO Check other browser adaptivity
 
@@ -103,6 +166,47 @@ var appendNotes = function(notes) {
 
         _notelist.appendChild(_noteItem);
     });
+}
+
+/**
+ * Append guidance text to #userhelp-modal
+ * @param {boolean} isTranslate     Whether the modal is for translation guidance or note guidance
+ */
+var appendGuidance = function(isTranslate) {
+    let _appendQA = function(qaArr) {
+        let _modalBody = document.getElementById('userhelp-modalbody');
+        while(_modalBody.firstChild) { 
+            _modalBody.firstChild.remove(); 
+        }
+
+        qaArr.forEach((qa, i) => {
+            let qaDiv = document.createElement('div');
+            qaDiv.id = `userhelp-qa${i+1}`;
+
+
+            let _qaQ = document.createElement('h5');
+            _qaQ.id = `userhelp-q${i+1}`;
+            _qaQ.textContent = qa.q;
+            qaDiv.appendChild(_qaQ);
+
+            qa.a.forEach((aline,j) => {
+                let _qaA = document.createElement('p');
+                _qaA.id = `userhelp-a${i+1}${j+1}`;
+                _qaA.textContent = aline;
+                qaDiv.appendChild(_qaA);
+            });
+
+            _modalBody.appendChild(qaDiv);
+            _modalBody.appendChild(document.createElement('hr'));
+        });
+    }
+
+    // 1. Display modal
+    document.getElementById('userhelp-modal').style.display = 'block';
+
+    // 2. Append texts
+    document.getElementById('userhelp-modaltitle').textContent = isTranslate ? 'Translation Guidance' : 'Note Guidance'
+    _appendQA(isTranslate ? TRANSLATION_GUIDANCE : NOTE_GUIDANCE);
 }
 
 
@@ -223,10 +327,26 @@ document.getElementById('noteedit-save').onclick = function(e) {
     }
 }
 
+// On clicking translation assistance
+document.getElementById('userhelp-translbtn').onclick = function(e) {
+    appendGuidance(true);
+}
+
+// On clicking note assistance
+document.getElementById('userhelp-notebtn').onclick = function(e) {
+    appendGuidance(false);
+}
+
+
+// On closing modal
+document.getElementById('modal-close').onclick = function(e) {
+    document.getElementById('userhelp-modal').style.display = 'none';
+}
+
 /**
  * Event registration: select
  */
-// On changing T-API (S-Lang/translate/gross translation)
+// On changing T-API (S-Lang/translate/translation)
 document.getElementById('tapi-sel').onchange = function(e) {    
     Browser.runtime.sendMessage({
         isTranslate: true,

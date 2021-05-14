@@ -44,7 +44,7 @@
                     <h5 class="card-title">Change API Source (Developer)</h5>
                     <p class="card-text">Substitute translation API source.</p>
 
-                    <label for="tapi-sel">Gross translation API</label>
+                    <label for="tapi-sel">Translation API</label>
                     <select class="form-control" id="tapi-sel"></select>
 
                     <label for="papi-sel">Lexical explanation API</label>
@@ -136,13 +136,18 @@
 
     <hr>
 
-    <div class="row" id="user-assistance">
+    <div class="row" id="userhelp">
         <div class="col-4">
             <div class="card card-left">
                 <div class="card-header">User Assistance</div>
                 <div class="card-body">
                     <h5 class="card-title">Translation Module Guidance</h5>
                     <p class="card-text">Get help on how to use translation module.</p>
+
+                    <button type="button" class="btn btn-outline-primary userhelp-btn" id="userhelp-translbtn">
+                        How to use translation module inside a webpage?
+                    </button>
+
                 </div>
             </div>
         </div>
@@ -153,9 +158,26 @@
                 <div class="card-body">
                     <h5 class="card-title">Note Module Guidance</h5>
                     <p class="card-text">Get help on how to use note module.</p>
+
+                    <button type="button" class="btn btn-outline-primary userhelp-btn" id="userhelp-notebtn">
+                        How to use Note module inside a webpage?
+                    </button>
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="modal" id="userhelp-modal">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="userhelp-modaltitle">-</h5>
+                    <button type="button" class="btn-close" id="modal-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+              
+                <div class="modal-body" id="userhelp-modalbody"></div>
+            </div>
+          </div>
     </div>
         
     <hr>
@@ -191,13 +213,17 @@
             margin: 10px 20px;
         }
 
-        #noteedit-save {
+        #noteedit-save, .userhelp-btn {
             width: 100%;
         }
 
         label {
             font-size: 14px;
             font-style: oblique;
+        }
+
+        #userhelp-modal {
+            background-color: rgba(0,0,0,0.5);
         }
     </style>
 
