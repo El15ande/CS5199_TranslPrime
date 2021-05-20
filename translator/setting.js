@@ -23,7 +23,7 @@ const TRANSLATION_GUIDANCE = [
     {
         q: 'What language(s) are supported for these services?',
         a: [
-            'The languages supported by the services includes: English, German, French, Spanish and Chinese. These languages are supported for both Source Language (the language of the original text) and Target Language (the language of the translated text on the context menu)',
+            'The languages supported by the services includes: English, German and French. These languages are supported for both Source Language (the language of the original text) and Target Language (the language of the translated text on the context menu)',
             'Source Language and Target Language can be changed either in this page (Global Setting) or in the extension popup-page (Toolbar)'
         ]
     },
