@@ -87,7 +87,7 @@
   - `isSelection: boolean`: whether the note-taking is triggered with a keyword or not (TRUE: keyword = selection text) (FALSE: keyword === '')
   - `keyword: string`: selected keyword
 
-#### Translation menu DOM structure
+#### Assistance menu DOM structure
 
 (Translation context: Hallo, German to English)
 
@@ -142,7 +142,7 @@
 
     <div id="translprime-noteinput" tier="1">
       <!-- Category selection -->
-      <label id="noteinput-taglabel" tier="2">Note Tag</label>
+      <label id="noteinput-taglabel" tier="2">Note Category</label>
       <select id="translnoteinput-category" tier="2">
         <option value="Default">Default</option>
         <!-- Other customised category options -->

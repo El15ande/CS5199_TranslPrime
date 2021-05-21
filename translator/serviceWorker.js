@@ -1,10 +1,10 @@
-// Default T-API
+// Default T-API info.
 const BAIDU_DOMAIN = 'http://fanyi-api.baidu.com/api/trans/vip/translate';
 const BAIDU_APPID = '20210225000706883';
 const BAIDU_KEY = 'qQZh8SEkTNffxbK3vevy';
-// Default P-API
+// Default P-API info.
 const FREEDICT_DOMAIN = 'https://api.dictionaryapi.dev/api/v2/entries';
-// Microsoft API
+// Microsoft API info.
 const MS_TRANSLATOR_DOMAIN = 'https://api.cognitive.microsofttranslator.com/translate?api-version=3.0';
 const MS_TRANSLATOR_KEY = 'd566277440eb464c9b5e6f9445823858';
 const MS_TRANSLATOR_REGION = 'westeurope';

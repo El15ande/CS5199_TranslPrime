@@ -1,5 +1,5 @@
 /**
- * Translation menu HTMLElement node
+ * Assistance menu HTMLElement node
  * @private {number} #tier                    Level as a HTMLElement tree node (mandatory)
  * @private {TranslMenuElement[]} #children   Child-nodes
  * 
@@ -78,7 +78,7 @@ class TranslMenuElement {
 // Global browser
 var Browser = chrome || browser; // TODO Check other browser adaptivity
 
-// Previous translation menu position
+// Previous assistance menu position
 var prevPosition = { x: 0, y: 0 };
 
 // Editing note cache
@@ -88,8 +88,8 @@ var editedNote;
 
 /**
  * Get selection area info. from window
- *  1. x (number): translation menu absolute x-position
- *  2. y (number): translation menu absolute y-position
+ *  1. x (number): assistance menu absolute x-position
+ *  2. y (number): assistance menu absolute y-position
  * 
  * @returns {object}        Selection info.
  */
@@ -121,7 +121,7 @@ var getWindowSelection = function() {
 }
 
 /**
- * Display notes in translation menu
+ * Display notes in assistance menu
  * @param {object} message          Translation result from ServiceWorker (see Readme for detail)
  * @param {Note | Note[]} note      Notes 
  */
@@ -561,7 +561,7 @@ var createMenuNoteInput = function(result, translation) {
     });
 
     // 1. Add <select> categories
-    noteInputSet.addChild(getLabelTemplate(2, 'noteinput-taglabel', 'Note Tag', 'translnoteinput-category', { marginLeft: '10px' }));
+    noteInputSet.addChild(getLabelTemplate(2, 'noteinput-taglabel', 'Note Category', 'translnoteinput-category', { marginLeft: '10px' }));
     noteInputSet.addChild(getSelectTemplate(2, 'translnoteinput-category', result.notecats));
 
     // 2. Add <input> note keys
@@ -637,10 +637,10 @@ Browser.runtime.onMessage.addListener((message) => {
         let _existMenu = document.getElementById('translprime-translmenu');
         if(_existMenu) _existMenu.remove();
 
-        // 1. Translation menu creation
+        // 1. Assistance menu creation
         // 1.1 Get selection info.
         let _winSel = getWindowSelection();
-        // 1.2 Create overall translation menu
+        // 1.2 Create overall assistance menu
         let _overallMenu = getDivTemplate(0, 'translprime-translmenu', {
             // Menu position
             position: 'absolute',

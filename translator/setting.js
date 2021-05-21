@@ -15,7 +15,7 @@ const TRANSLATION_GUIDANCE = [
     {
         q: 'What is Lexical Explanation service? How to use it?',
         a: [
-            'The Lexical Explanation service is another light-weight machine translation function that provides the restatement of the meaning for a piece of text in another language (For example, a German word will be paraphrased in English with its meaning explained in English). The paraphrases on the translation menu includes part-of-speeches and up to 3 explanations',
+            'The Lexical Explanation service is another light-weight machine translation function that provides the restatement of the meaning for a piece of text in another language (For example, a German word will be paraphrased in English with its meaning explained in English). The paraphrases on the assistance menu includes part-of-speeches and up to 3 explanations',
             '1. Right-select the text (word(s) and sentence(s)) you want to translate, right-click to open the browser context menu.',
             '2. Select "Get Lexical Explanation" under "TranslPrime"'
         ]
@@ -52,8 +52,8 @@ const NOTE_GUIDANCE = [
     {
         q: 'What can I do with notes?',
         a: [
-            '1. Once you have taken a piece of note on some word(s), this note will be displayed on the translation menu if this keyword is searched again.',
-            '2. A note composes of 4 elements: the unique note ID, the category, the keyword(s) and the note content. These elements can be freely edited on both translation menu and this global setting page.',
+            '1. Once you have taken a piece of note on some word(s), this note will be displayed on the assistance menu if this keyword is searched again.',
+            '2. A note composes of 4 elements: the unique note ID, the category, the keyword(s) and the note content. These elements can be freely edited on both assistance menu and this global setting page.',
             '3. You can search, visualise and edit your notes in this page. You can also add or remove additional note categories in this page.'
         ]
     }
