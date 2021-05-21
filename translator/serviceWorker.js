@@ -624,6 +624,8 @@ var fetchAll = async function(fetchFormats, callback, delay=0) {
             translAPIs: [BAIDUTranslateAPI.name, MSTranslatorAPI.name],
             paraphAPIs: [FreeDictionaryAPI.name]
         });
+
+        Browser.runtime.openOptionsPage();
     } else {
         printErrors(0);
     }
